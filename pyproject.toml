@@ -3,7 +3,7 @@ name = "nspllm"
 version = "0.1.0"
 description = "Neuro-Symbolic Planning for Enhancing Coherence and Believability in Large Language Model-Driven Agents"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = "==3.9.23"
 authors = [
     {name = "Jeremi Wojciech Ledwon", email = "s232952@student.dtu.dk"},
     {name = "Alexandre Comas Gispert", email = "s233148@student.dtu.dk"},
