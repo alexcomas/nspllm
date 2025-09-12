@@ -86,15 +86,15 @@ def agent_chat_v1(maze, init_persona, target_persona):
     # Chat version optimized for speed via batch generation
     curr_context = (
         f"{init_persona.scratch.name} "
-        + f"was {init_persona.scratch.act_description} "
-        + f"when {init_persona.scratch.name} "
-        + f"saw {target_persona.scratch.name} "
-        + f"in the middle of {target_persona.scratch.act_description}.\n"
+         f"was {init_persona.scratch.act_description} "
+         f"when {init_persona.scratch.name} "
+         f"saw {target_persona.scratch.name} "
+         f"in the middle of {target_persona.scratch.act_description}.\n"
     )
     curr_context += (
         f"{init_persona.scratch.name} "
-        + "is thinking of initating a conversation with "
-        + f"{target_persona.scratch.name}."
+         "is thinking of initating a conversation with "
+         f"{target_persona.scratch.name}."
     )
 
     summarized_ideas = []
@@ -130,15 +130,15 @@ def generate_one_utterance(maze, init_persona, target_persona, retrieved, curr_c
     # Chat version optimized for speed via batch generation
     curr_context = (
         f"{init_persona.scratch.name} "
-        + f"was {init_persona.scratch.act_description} "
-        + f"when {init_persona.scratch.name} "
-        + f"saw {target_persona.scratch.name} "
-        + f"in the middle of {target_persona.scratch.act_description}.\n"
+         f"was {init_persona.scratch.act_description} "
+         f"when {init_persona.scratch.name} "
+         f"saw {target_persona.scratch.name} "
+         f"in the middle of {target_persona.scratch.act_description}.\n"
     )
     curr_context += (
         f"{init_persona.scratch.name} "
-        + "is initiating a conversation with "
-        + f"{target_persona.scratch.name}."
+         "is initiating a conversation with "
+         f"{target_persona.scratch.name}."
     )
 
     print("July 23 5")

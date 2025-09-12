@@ -5,19 +5,13 @@ File: global_methods.py
 Description: Contains functions used throughout my projects.
 """
 
-import random
-import string
 import csv
-import time
-import datetime as dt
-import pathlib
+import errno
 import os
-import sys
-import numpy
-import math
-import shutil, errno
-
+import shutil
 from os import listdir
+
+import numpy
 
 
 def create_folder_if_not_there(curr_path):
@@ -112,15 +106,14 @@ def read_file_to_list(curr_file, header=False, strip_trail=True):
                     row = [i.strip() for i in row]
                 analysis_list += [row]
         return analysis_list
-    else:
-        analysis_list = []
-        with open(curr_file) as f_analysis_file:
-            data_reader = csv.reader(f_analysis_file, delimiter=",")
-            for count, row in enumerate(data_reader):
-                if strip_trail:
-                    row = [i.strip() for i in row]
-                analysis_list += [row]
-        return analysis_list[0], analysis_list[1:]
+    analysis_list = []
+    with open(curr_file) as f_analysis_file:
+        data_reader = csv.reader(f_analysis_file, delimiter=",")
+        for count, row in enumerate(data_reader):
+            if strip_trail:
+                row = [i.strip() for i in row]
+            analysis_list += [row]
+    return analysis_list[0], analysis_list[1:]
 
 
 def read_file_to_set(curr_file, col=0):

@@ -3,19 +3,14 @@ Author: Joon Sung Park (joonspk@stanford.edu)
 File: views.py
 """
 
-import os
-import string
-import random
+import datetime
 import json
-from os import listdir
 import os
 
-import datetime
-from django.shortcuts import render, redirect, HttpResponseRedirect
 from django.http import HttpResponse, JsonResponse
+from django.shortcuts import render
 from global_methods import *
 
-from django.contrib.staticfiles.templatetags.staticfiles import static
 from .models import *
 
 
@@ -42,7 +37,7 @@ def demo(request, sim_code, step, play_speed="2"):
 
     sec_per_step = meta["sec_per_step"]
     start_datetime = datetime.datetime.strptime(
-        meta["start_date"] + " 00:00:00", "%B %d, %Y %H:%M:%S"
+        meta["start_date"] + " 00:00:00", "%B %d, %Y %H:%M:%S",
     )
     for i in range(step):
         start_datetime += datetime.timedelta(seconds=sec_per_step)
@@ -63,7 +58,7 @@ def demo(request, sim_code, step, play_speed="2"):
                 "original": p,
                 "underscore": p.replace(" ", "_"),
                 "initial": p[0] + p.split(" ")[-1][0],
-            }
+            },
         ]
         persona_names_set.add(p)
 
@@ -110,7 +105,7 @@ def demo(request, sim_code, step, play_speed="2"):
 
 def UIST_Demo(request):
     return demo(
-        request, "March20_the_ville_n25_UIST_RUN-step-1-141", 2160, play_speed="3"
+        request, "March20_the_ville_n25_UIST_RUN-step-1-141", 2160, play_speed="3",
     )
 
 
@@ -145,7 +140,7 @@ def home(request):
         x = i.split("/")[-1].strip()
         if x[0] != ".":
             file_count += [int(x.split(".")[0])]
-    curr_json = f"storage/{sim_code}/environment/{str(max(file_count))}.json"
+    curr_json = f"storage/{sim_code}/environment/{max(file_count)!s}.json"
     with open(curr_json) as json_file:
         persona_init_pos_dict = json.load(json_file)
         for key, val in persona_init_pos_dict.items():
@@ -181,7 +176,7 @@ def replay(request, sim_code, step):
         x = i.split("/")[-1].strip()
         if x[0] != ".":
             file_count += [int(x.split(".")[0])]
-    curr_json = f"storage/{sim_code}/environment/{str(max(file_count))}.json"
+    curr_json = f"storage/{sim_code}/environment/{max(file_count)!s}.json"
     with open(curr_json) as json_file:
         persona_init_pos_dict = json.load(json_file)
         for key, val in persona_init_pos_dict.items():
@@ -225,7 +220,7 @@ def replay_persona_state(request, sim_code, step, persona_name):
     a_mem_thought = []
 
     for count in range(len(associative.keys()), 0, -1):
-        node_id = f"node_{str(count)}"
+        node_id = f"node_{count!s}"
         node_details = associative[node_id]
 
         if node_details["type"] == "event":
@@ -328,7 +323,7 @@ def path_tester_update(request):
     data = json.loads(request.body)
     camera = data["camera"]
 
-    with open(f"temp_storage/path_tester_env.json", "w") as outfile:
+    with open("temp_storage/path_tester_env.json", "w") as outfile:
         outfile.write(json.dumps(camera, indent=2))
 
     return HttpResponse("received")
