@@ -4,13 +4,12 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('translator', '0004_auto_20230330_0204'),
+        ("translator", "0004_auto_20230330_0204"),
     ]
 
     operations = [
         migrations.DeleteModel(
-            name='EvalData',
+            name="EvalData",
         ),
     ]
