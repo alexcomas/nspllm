@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "translator",
     "corsheaders",
     "storages",
+    "api",  # New API app for SPA
 ]
 
 MIDDLEWARE = [
@@ -128,6 +129,19 @@ STATICFILES_DIRS = (os.path.join(BASE_DIR, "static_dirs"),)
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(os.path.dirname(BASE_DIR), "media_root")
 
+
+# CORS settings for Vue SPA development
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # Vite dev server
+    "http://127.0.0.1:5173",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
 
 # CORS_ORIGIN_WHITELIST = [
 # 'http://127.0.0.1:8080'

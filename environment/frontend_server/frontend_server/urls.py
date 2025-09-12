@@ -16,7 +16,7 @@ Including another URLconf
 
 from django.conf.urls import url
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from translator import views as translator_views
 
 urlpatterns = [
@@ -54,4 +54,6 @@ urlpatterns = [
         name="path_tester_update",
     ),
     path("admin/", admin.site.urls),
+    # API endpoints for SPA
+    path("api/", include("api.urls")),
 ]
