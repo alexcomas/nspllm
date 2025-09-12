@@ -1,0 +1,64 @@
+[project]
+name = "nspllm"
+version = "0.1.0"
+description = "Neuro-Symbolic Planning for Enhancing Coherence and Believability in Large Language Model-Driven Agents"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    {name = "Jeremi Wojciech Ledwon", email = "s232952@student.dtu.dk"},
+    {name = "Alexandre Comas Gispert", email = "s233148@student.dtu.dk"},
+]
+keywords = ["llm", "agents", "planning", "neuro-symbolic", "simulation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3.9",
+]
+dependencies = [
+    "aiohttp==3.8.3",
+    "asgiref==3.5.2",
+    "boto==2.49.0",
+    "click==8.0.3",
+    "django>=2.2,<3.0",
+    "django-cors-headers==2.5.3",
+    "gensim>=4.3.3",
+    "gunicorn==20.1.0",
+    "matplotlib>=3.9.4",
+    "nltk==3.6.5",
+    "numpy==1.25.2",
+    "openai==0.27.0",
+    "pandas==2.0.3",
+    "pillow>=8.4.0",
+    "psycopg2-binary==2.9.5",
+    "requests==2.26.0",
+    "scikit-learn>=1.6.1",
+    "scikit-posthocs>=0.11.4",
+    "scipy>=1.13.1",
+    "seaborn>=0.13.2",
+    "selenium==4.8.2",
+    "statsmodels>=0.14.5",
+    "tqdm==4.62.3",
+    "trueskill>=0.4.5",
+    "yellowbrick>=1.5",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "ruff",
+    "mypy",
+    "pre-commit",
+    "pytest",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "C90", "I", "N", "UP", "YTT", "S", "BLE", "FBT", "B", "A", "COM", "C4", "DTZ", "T10", "DJ", "EM", "EXE", "FA", "ISC", "ICN", "G", "INP", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SLOT", "SIM", "TID", "TCH", "INT", "ARG", "PTH", "ERA", "PD", "PGH", "PL", "TRY", "FLY", "NPY", "AIR", "PERF", "FURB", "LOG", "RUF"]
+ignore = ["E501", "S101", "PLR0913"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
