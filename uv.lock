@@ -57,6 +57,15 @@ wheels = [
 ]
 
 [[package]]
+name = "async-generator"
+version = "1.10"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ce/b6/6fa6b3b598a03cba5e80f829e0dadbb49d7645f523d209b2fb7ea0bbb02a/async_generator-1.10.tar.gz", hash = "sha256:6ebb3d106c12920aaae42ccb6f787ef5eefdcdd166ea3d628fa8476abe712144", size = 29870, upload-time = "2018-08-01T03:36:21.69Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/71/52/39d20e03abd0ac9159c162ec24b93fbcaa111e8400308f2465432495ca2b/async_generator-1.10-py3-none-any.whl", hash = "sha256:01c7bf666359b4967d2cda0000cc2e4af16a0ae098cbffcb8472fb9e8ad6585b", size = 18857, upload-time = "2018-08-01T03:36:20.029Z" },
+]
+
+[[package]]
 name = "async-timeout"
 version = "4.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -81,6 +90,20 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/c8/af/54a920ff4255664f5d238b5aebd8eedf7a07c7a5e71e27afcfe840b82f51/boto-2.49.0.tar.gz", hash = "sha256:ea0d3b40a2d852767be77ca343b58a9e3a4b00d9db440efb8da74b4e58025e5a", size = 1478498, upload-time = "2018-07-11T20:58:58.057Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/23/10/c0b78c27298029e4454a472a1919bde20cb182dab1662cec7f2ca1dcc523/boto-2.49.0-py2.py3-none-any.whl", hash = "sha256:147758d41ae7240dc989f0039f27da8ca0d53734be0eb869ef16e3adcfa462e8", size = 1359202, upload-time = "2018-07-11T20:58:55.711Z" },
+]
+
+[[package]]
+name = "botocore"
+version = "1.40.29"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "jmespath" },
+    { name = "python-dateutil" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3f/0d/3e420528a69ea8077c91d80aaeea9c2c4dcdc4115e5e267f52636f3fa4f5/botocore-1.40.29.tar.gz", hash = "sha256:4e5207acef693167bb99c08a4c24d3e9405cb9669999e272a473a04cf2ba9df9", size = 14346806, upload-time = "2025-09-11T19:24:17.717Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4b/9e/d9d9726a9c95179544fb7ca3cba7e1cf82b60d9bc030eb034aa4abc22454/botocore-1.40.29-py3-none-any.whl", hash = "sha256:69a180a027044ae01db80b4cce4b2f93b6e4731fd7a8393c54f708c5677af85f", size = 14021245, upload-time = "2025-09-11T19:24:14.947Z" },
 ]
 
 [[package]]
@@ -169,6 +192,15 @@ wheels = [
 ]
 
 [[package]]
+name = "dj-database-url"
+version = "0.5.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/01/c4/98fbf678e810029be8078419f7bba626aafa2e81bc38748757db954c477c/dj-database-url-0.5.0.tar.gz", hash = "sha256:4aeaeb1f573c74835b0686a2b46b85990571159ffc21aa57ecd4d1e1cb334163", size = 5482, upload-time = "2018-03-01T18:39:51.842Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d4/a6/4b8578c1848690d0c307c7c0596af2077536c9ef2a04d42b00fabaa7e49d/dj_database_url-0.5.0-py2.py3-none-any.whl", hash = "sha256:851785365761ebe4994a921b433062309eb882fedd318e1b0fcecc607ed02da9", size = 5502, upload-time = "2018-03-01T18:39:49.412Z" },
+]
+
+[[package]]
 name = "django"
 version = "2.2.28"
 source = { registry = "https://pypi.org/simple" }
@@ -191,6 +223,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/42/4b/5a2584f4144296f24f5204ebe656aff243f84de3ad3e1b993d8ce84750f2/django-cors-headers-2.5.3.tar.gz", hash = "sha256:c7987faa9aaef7f6a802b0f354a719e80a9158c284f530265ac792f1ee725e52", size = 23295, upload-time = "2019-04-28T19:03:39.888Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/83/7f/96fa0dc138d4aab23bcbcb312df31ca63fb34f643805f02dddf9e460c648/django_cors_headers-2.5.3-py2.py3-none-any.whl", hash = "sha256:ceacbd60dd5a65c95e65e74b5559bd4161aa3fe5713c44e1f3417a12bd41e7ba", size = 13259, upload-time = "2019-04-28T19:03:35.47Z" },
+]
+
+[[package]]
+name = "django-storages-redux"
+version = "1.3.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/57/14/c0a438a67fe4c180cf082c8ce39483a6fbd36d86270806cf91b65fb1eef4/django-storages-redux-1.3.3.tar.gz", hash = "sha256:35974b3505fb60315c93d36658ec642295fa3735a0295d61c51db17f4dd9ed7d", size = 215280, upload-time = "2017-06-27T20:03:36.201Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7d/c3/a0c2573fa5f3d0bb88df7ee67139935ea8e8fc43cb85430571fa9cacd9e8/django_storages_redux-1.3.3-py2.py3-none-any.whl", hash = "sha256:e0d19ac48bc2e75c807f98341a7937ad24ac4de1b0c9bbdfec5945d30a63220c", size = 51888, upload-time = "2017-06-27T20:03:38.56Z" },
 ]
 
 [[package]]
@@ -297,6 +338,18 @@ wheels = [
 ]
 
 [[package]]
+name = "importlib-metadata"
+version = "8.7.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "zipp" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/76/66/650a33bd90f786193e4de4b3ad86ea60b53c89b669a5c7be931fac31cdb0/importlib_metadata-8.7.0.tar.gz", hash = "sha256:d13b81ad223b890aa16c5471f2ac3056cf76c5f10f82d6f9292f0b415f389000", size = 56641, upload-time = "2025-04-27T15:29:01.736Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/20/b0/36bd937216ec521246249be3bf9855081de4c5e06a0c9b4219dbeda50373/importlib_metadata-8.7.0-py3-none-any.whl", hash = "sha256:e5dd1551894c77868a30651cef00984d50e1002d06942a7101d34870c5f02afd", size = 27656, upload-time = "2025-04-27T15:29:00.214Z" },
+]
+
+[[package]]
 name = "importlib-resources"
 version = "6.5.2"
 source = { registry = "https://pypi.org/simple" }
@@ -315,6 +368,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f2/97/ebf4da567aa6827c909642694d71c9fcf53e5b504f2d96afea02718862f3/iniconfig-2.1.0.tar.gz", hash = "sha256:3abbd2e30b36733fee78f9c7f7308f2d0050e88f0087fd25c2645f63c773e1c7", size = 4793, upload-time = "2025-03-19T20:09:59.721Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2c/e1/e6716421ea10d38022b952c159d5161ca1193197fb744506875fbb87ea7b/iniconfig-2.1.0-py3-none-any.whl", hash = "sha256:9deba5723312380e77435581c6bf4935c94cbfab9b1ed33ef8d238ea168eb760", size = 6050, upload-time = "2025-03-19T20:10:01.071Z" },
+]
+
+[[package]]
+name = "jmespath"
+version = "1.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/00/2a/e867e8531cf3e36b41201936b7fa7ba7b5702dbef42922193f05c8976cd6/jmespath-1.0.1.tar.gz", hash = "sha256:90261b206d6defd58fdd5e85f478bf633a2901798906be2ad389150c5c60edbe", size = 25843, upload-time = "2022-06-17T18:00:12.224Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/31/b4/b9b800c45527aadd64d5b442f9b932b00648617eb5d63d2c7a6587b7cafc/jmespath-1.0.1-py3-none-any.whl", hash = "sha256:02e2e4cc71b5bcab88332eebf907519190dd9e6e82107fa7f83b1003a6252980", size = 20256, upload-time = "2022-06-17T18:00:10.251Z" },
 ]
 
 [[package]]
@@ -437,30 +499,72 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "aiohttp" },
+    { name = "aiosignal" },
     { name = "asgiref" },
+    { name = "async-generator" },
+    { name = "async-timeout" },
+    { name = "attrs" },
     { name = "boto" },
+    { name = "botocore" },
+    { name = "certifi" },
+    { name = "charset-normalizer" },
     { name = "click" },
+    { name = "cycler" },
+    { name = "dj-database-url" },
     { name = "django" },
     { name = "django-cors-headers" },
+    { name = "django-storages-redux" },
+    { name = "exceptiongroup" },
+    { name = "frozenlist" },
     { name = "gensim" },
     { name = "gunicorn" },
+    { name = "h11" },
+    { name = "idna" },
+    { name = "importlib-metadata" },
+    { name = "jmespath" },
+    { name = "joblib" },
+    { name = "kiwisolver" },
     { name = "matplotlib" },
+    { name = "multidict" },
     { name = "nltk" },
     { name = "numpy" },
     { name = "openai" },
+    { name = "outcome" },
+    { name = "packaging" },
     { name = "pandas" },
+    { name = "patsy" },
     { name = "pillow" },
     { name = "psycopg2-binary" },
+    { name = "pycparser" },
+    { name = "pyparsing" },
+    { name = "pysocks" },
+    { name = "python-dateutil" },
+    { name = "pytz" },
+    { name = "regex" },
     { name = "requests" },
+    { name = "s3transfer" },
     { name = "scikit-learn" },
     { name = "scikit-posthocs" },
     { name = "scipy" },
     { name = "seaborn" },
     { name = "selenium" },
+    { name = "six" },
+    { name = "smart-open" },
+    { name = "sniffio" },
+    { name = "sortedcontainers" },
+    { name = "sqlparse" },
     { name = "statsmodels" },
+    { name = "threadpoolctl" },
     { name = "tqdm" },
+    { name = "trio" },
+    { name = "trio-websocket" },
     { name = "trueskill" },
+    { name = "typing-extensions" },
+    { name = "urllib3" },
+    { name = "wsproto" },
+    { name = "yarl" },
     { name = "yellowbrick" },
+    { name = "zipp" },
 ]
 
 [package.dev-dependencies]
@@ -472,30 +576,72 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = "==3.8.3" },
+    { name = "aiosignal", specifier = ">=1.4.0" },
     { name = "asgiref", specifier = "==3.5.2" },
+    { name = "async-generator", specifier = ">=1.10" },
+    { name = "async-timeout", specifier = ">=4.0.3" },
+    { name = "attrs", specifier = ">=25.3.0" },
     { name = "boto", specifier = "==2.49.0" },
+    { name = "botocore", specifier = ">=1.40.29" },
+    { name = "certifi", specifier = ">=2025.8.3" },
+    { name = "charset-normalizer", specifier = ">=2.0.12" },
     { name = "click", specifier = "==8.0.3" },
+    { name = "cycler", specifier = ">=0.12.1" },
+    { name = "dj-database-url", specifier = ">=0.5.0" },
     { name = "django", specifier = ">=2.2,<3.0" },
     { name = "django-cors-headers", specifier = "==2.5.3" },
+    { name = "django-storages-redux", specifier = ">=1.3.3" },
+    { name = "exceptiongroup", specifier = ">=1.3.0" },
+    { name = "frozenlist", specifier = ">=1.7.0" },
     { name = "gensim", specifier = ">=4.3.3" },
     { name = "gunicorn", specifier = "==20.1.0" },
+    { name = "h11", specifier = ">=0.16.0" },
+    { name = "idna", specifier = ">=3.10" },
+    { name = "importlib-metadata", specifier = ">=8.7.0" },
+    { name = "jmespath", specifier = ">=1.0.1" },
+    { name = "joblib", specifier = ">=1.5.2" },
+    { name = "kiwisolver", specifier = ">=1.4.7" },
     { name = "matplotlib", specifier = ">=3.9.4" },
+    { name = "multidict", specifier = ">=6.6.4" },
     { name = "nltk", specifier = "==3.6.5" },
     { name = "numpy", specifier = "==1.25.2" },
     { name = "openai", specifier = "==0.27.0" },
+    { name = "outcome", specifier = ">=1.3.0.post0" },
+    { name = "packaging", specifier = ">=25.0" },
     { name = "pandas", specifier = "==2.0.3" },
+    { name = "patsy", specifier = ">=1.0.1" },
     { name = "pillow", specifier = ">=8.4.0" },
     { name = "psycopg2-binary", specifier = "==2.9.5" },
+    { name = "pycparser", specifier = ">=2.23" },
+    { name = "pyparsing", specifier = ">=3.2.3" },
+    { name = "pysocks", specifier = ">=1.7.1" },
+    { name = "python-dateutil", specifier = ">=2.9.0.post0" },
+    { name = "pytz", specifier = ">=2025.2" },
+    { name = "regex", specifier = ">=2025.9.1" },
     { name = "requests", specifier = "==2.26.0" },
+    { name = "s3transfer", specifier = ">=0.14.0" },
     { name = "scikit-learn", specifier = ">=1.6.1" },
     { name = "scikit-posthocs", specifier = ">=0.11.4" },
     { name = "scipy", specifier = ">=1.13.1" },
     { name = "seaborn", specifier = ">=0.13.2" },
     { name = "selenium", specifier = "==4.8.2" },
+    { name = "six", specifier = ">=1.17.0" },
+    { name = "smart-open", specifier = ">=7.3.1" },
+    { name = "sniffio", specifier = ">=1.3.1" },
+    { name = "sortedcontainers", specifier = ">=2.4.0" },
+    { name = "sqlparse", specifier = ">=0.5.3" },
     { name = "statsmodels", specifier = ">=0.14.5" },
+    { name = "threadpoolctl", specifier = ">=3.6.0" },
     { name = "tqdm", specifier = "==4.62.3" },
+    { name = "trio", specifier = ">=0.31.0" },
+    { name = "trio-websocket", specifier = ">=0.12.2" },
     { name = "trueskill", specifier = ">=0.4.5" },
+    { name = "typing-extensions", specifier = ">=4.15.0" },
+    { name = "urllib3", specifier = ">=1.26.20" },
+    { name = "wsproto", specifier = ">=1.2.0" },
+    { name = "yarl", specifier = ">=1.20.1" },
     { name = "yellowbrick", specifier = ">=1.5" },
+    { name = "zipp", specifier = ">=3.23.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -799,6 +945,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/46/09/dca8df3d48e8b3f4202bf20b1658898e74b6442ac835bfe2c1816d926697/ruff-0.13.0-py3-none-win32.whl", hash = "sha256:4e473e8f0e6a04e4113f2e1de12a5039579892329ecc49958424e5568ef4f768", size = 12141613, upload-time = "2025-09-10T16:25:28.664Z" },
     { url = "https://files.pythonhosted.org/packages/61/21/0647eb71ed99b888ad50e44d8ec65d7148babc0e242d531a499a0bbcda5f/ruff-0.13.0-py3-none-win_amd64.whl", hash = "sha256:48e5c25c7a3713eea9ce755995767f4dcd1b0b9599b638b12946e892123d1efb", size = 13258250, upload-time = "2025-09-10T16:25:31.773Z" },
     { url = "https://files.pythonhosted.org/packages/e1/a3/03216a6a86c706df54422612981fb0f9041dbb452c3401501d4a22b942c9/ruff-0.13.0-py3-none-win_arm64.whl", hash = "sha256:ab80525317b1e1d38614addec8ac954f1b3e662de9d59114ecbf771d00cf613e", size = 12312357, upload-time = "2025-09-10T16:25:35.595Z" },
+]
+
+[[package]]
+name = "s3transfer"
+version = "0.14.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "botocore" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/62/74/8d69dcb7a9efe8baa2046891735e5dfe433ad558ae23d9e3c14c633d1d58/s3transfer-0.14.0.tar.gz", hash = "sha256:eff12264e7c8b4985074ccce27a3b38a485bb7f7422cc8046fee9be4983e4125", size = 151547, upload-time = "2025-09-09T19:23:31.089Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/48/f0/ae7ca09223a81a1d890b2557186ea015f6e0502e9b8cb8e1813f1d8cfa4e/s3transfer-0.14.0-py3-none-any.whl", hash = "sha256:ea3b790c7077558ed1f02a3072fb3cb992bbbd253392f4b6e9e8976941c7d456", size = 85712, upload-time = "2025-09-09T19:23:30.041Z" },
 ]
 
 [[package]]
