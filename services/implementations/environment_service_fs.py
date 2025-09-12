@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from .environment_service import EnvironmentService
+from services.environment_service import EnvironmentService
 from repositories.environment_repository import EnvironmentRepository
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from .llm_repository import LLMRepository
+from repositories.llm_repository import LLMRepository
 
 
 class MockLLMRepository(LLMRepository):

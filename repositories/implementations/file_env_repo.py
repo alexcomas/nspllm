@@ -5,7 +5,7 @@ import os
 import shutil
 from typing import Any, Dict
 
-from .environment_repository import EnvironmentRepository
+from repositories.environment_repository import EnvironmentRepository
 
 
 class FileEnvRepo(EnvironmentRepository):

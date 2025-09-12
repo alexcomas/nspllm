@@ -1,6 +1,6 @@
-from repositories.mock_llm_repo import MockLLMRepository
-from repositories.file_env_repo import FileEnvRepo
-from services.environment_service_fs import FileSystemEnvironmentService
+from repositories.implementations.mock_llm_repo import MockLLMRepository
+from repositories.implementations.file_env_repo import FileEnvRepo
+from services.implementations.environment_service_fs import FileSystemEnvironmentService
 
 
 def test_mock_llm_echo():
