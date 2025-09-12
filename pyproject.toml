@@ -45,8 +45,6 @@ dependencies = [
 [tool.uv]
 dev-dependencies = [
     "ruff",
-    "mypy",
-    "pre-commit",
     "pytest",
 ]
 
