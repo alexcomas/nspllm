@@ -48,6 +48,12 @@
           >
             Demo
           </router-link>
+          <router-link 
+            :to="`/replay/${sim.id}`" 
+            class="action-btn replay"
+          >
+            Replay
+          </router-link>
         </div>
       </div>
     </div>
@@ -269,5 +275,14 @@ onMounted(() => {
 
 .action-btn.demo:hover {
   background: #2563eb;
+}
+
+.action-btn.replay {
+  background: #ef4444;
+  color: white;
+}
+
+.action-btn.replay:hover {
+  background: #dc2626;
 }
 </style>

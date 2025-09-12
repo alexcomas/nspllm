@@ -159,5 +159,5 @@ keywords = {Human-AI interaction, agents, generative AI, large language models}
 
 ## 🙏 Acknowledgements
 
-This project builds on the [Generative Agents repository](https://github.com/joonspk-research/generative-agents).
+This project builds on the [Generative Agents repository](https://github.com/joonspk-research/generative_agents).
 We thank the original authors and artists for releasing their code, assets, and insights.

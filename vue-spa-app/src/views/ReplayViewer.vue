@@ -52,8 +52,11 @@
             >
               <h4>{{ agent.name }}</h4>
               <p class="persona">{{ agent.persona }}</p>
-              <p class="location">📍 {{ agent.location.area }} ({{ agent.location.x }}, {{ agent.location.y }})</p>
-              <p class="action">🎬 {{ agent.current_action }}</p>
+              <p class="location">
+                <span v-if="agent.location.area && agent.location.area !== ''">📍 {{ agent.location.area }} </span>
+                <span>(x: {{ agent.location.x }}, y: {{ agent.location.y }})</span>
+              </p>
+              <p class="action"><strong>🎬 {{ agent.current_action }}</strong></p>
               <div class="emotions">
                 <span 
                   v-for="(value, emotion) in agent.emotions" 
