@@ -243,6 +243,20 @@ def simulation_state(request, sim_id):
                         env_data = json.load(f)
                     
                     agents = []
+                    # Attempt to load latest movement descriptions for dynamic actions
+                    movement_descs = {}
+                    movement_emojis = {}
+                    try:
+                        move_file = os.path.join(sim_path, "movement", f"{latest_step}.json")
+                        if os.path.exists(move_file):
+                            with open(move_file, 'r') as f:
+                                move_data = json.load(f)
+                            if isinstance(move_data, dict) and "persona" in move_data:
+                                for p_name, p_data in move_data["persona"].items():
+                                    movement_descs[p_name] = p_data.get("description")
+                                    movement_emojis[p_name] = p_data.get("pronunciatio")
+                    except Exception as e:
+                        logger.debug(f"Could not read movement file for actions: {e}")
                     for persona_name, persona_pos in env_data.items():
                         # Try to get persona description
                         persona_path = os.path.join(sim_path, "personas", persona_name)
@@ -262,6 +276,15 @@ def simulation_state(request, sim_id):
                                     except:
                                         continue
                         
+                        # Dynamic action: prefer movement description; fallback to any embedded current_action or generic phrase
+                        action_desc = movement_descs.get(persona_name) or persona_pos.get("current_action") or persona_pos.get("description") or "Exploring the environment"
+                        # Optionally prefix emoji if available
+                        emoji = movement_emojis.get(persona_name)
+                        if emoji and emoji not in action_desc:
+                            action_display = f"{emoji} {action_desc}"
+                        else:
+                            action_display = action_desc
+
                         agents.append({
                             "id": persona_name.replace(" ", "_"),
                             "name": persona_name,
@@ -271,7 +294,7 @@ def simulation_state(request, sim_id):
                                 "y": persona_pos["y"],
                                 "area": persona_pos.get("maze", "Unknown area")
                             },
-                            "current_action": "Exploring the environment",
+                            "current_action": action_display,
                             "emotions": {
                                 "happiness": 0.7,
                                 "curiosity": 0.8,
@@ -423,6 +446,21 @@ def get_replay(request, replay_id):
                 for step, file_path in steps:
                     with open(file_path, 'r') as f:
                         env_data = json.load(f)
+                    # Load matching movement file for richer action descriptions
+                    move_descs = {}
+                    move_emojis = {}
+                    try:
+                        move_file = os.path.join("storage", replay_id, "movement", f"{step}.json")
+                        if os.path.exists(move_file):
+                            with open(move_file, 'r') as mf:
+                                mdata = json.load(mf)
+                            if isinstance(mdata, dict) and "persona" in mdata:
+                                for p_name, p_data in mdata["persona"].items():
+                                    move_descs[p_name] = p_data.get("description")
+                                    move_emojis[p_name] = p_data.get("pronunciatio")
+                    except Exception as e:
+                        logger.debug(f"Replay movement file read error step {step}: {e}")
+
                     agents = []
                     for persona_name, persona_pos in env_data.items():
                         persona_names.add(persona_name)
@@ -430,10 +468,18 @@ def get_replay(request, replay_id):
                         area = persona_pos.get("maze", "")
                         if area == "the_ville":
                             area = ""
-                        # Try to get a more specific action if available
-                        action = persona_pos.get("current_action") or persona_pos.get("description") or ""
-                        if not action or action == "the_ville":
+                        # Determine action
+                        action = (
+                            move_descs.get(persona_name)
+                            or persona_pos.get("current_action")
+                            or persona_pos.get("description")
+                            or "Exploring the environment"
+                        )
+                        if action == "the_ville":
                             action = "Exploring the environment"
+                        emoji = move_emojis.get(persona_name)
+                        if emoji and emoji not in action:
+                            action = f"{emoji} {action}"
                         agents.append({
                             "id": persona_name.replace(" ", "_"),
                             "name": persona_name,

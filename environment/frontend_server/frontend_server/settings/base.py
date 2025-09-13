@@ -25,7 +25,9 @@ SECRET_KEY = "c7l%1%b=2sh$o9zqvd4i*h8*__^@-5sm-y)m(1ib2t92)43@62"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    '*',  # Allow all for dev safety (remove in production)
+]
 
 
 # Application definition
@@ -44,14 +46,16 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # corsheaders must be as high as possible per docs
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "api.middleware.RequestLoggingMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     # 'django.middleware.csrf.CsrfViewMiddleware',
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
 ]
 
 ROOT_URLCONF = "frontend_server.urls"
@@ -130,22 +134,42 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(os.path.dirname(BASE_DIR), "media_root")
 
 
-# CORS settings for Vue SPA development
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Vite dev server
-    "http://127.0.0.1:5173",
-]
 
+# CORS: allow all origins for development
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = ["*"]
 
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
-
-# CORS_ORIGIN_WHITELIST = [
-# 'http://127.0.0.1:8080'
-# ]
-
-# CORS_ORIGIN_ALLOW_ALL = True
-# CORS_ALLOW_CREDENTIALS = False
+# Logging configuration to surface request start/end logs from RequestLoggingMiddleware
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "[%(asctime)s] %(levelname)s %(name)s %(message)s",
+        },
+        "simple": {
+            "format": "%(levelname)s %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        # Our middleware explicit logger
+        "api.request": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        # Optionally tune Django request logger if needed
+        "django.request": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": True,
+        },
+    },
+}

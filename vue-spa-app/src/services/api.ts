@@ -1,10 +1,53 @@
 import axios from 'axios'
 import type { Simulation, SimulationState, Replay, HealthStatus } from '@/types'
 
+// Determine API base URL precedence:
+// 1. VITE_API_BASE_URL (new preferred)
+// 2. VITE_API_BASE (legacy)
+// 3. If running dev on :5173 and no env var, force explicit 127.0.0.1 to avoid localhost origin confusion
+// 4. Fallback to relative '/api' (works in production when served behind same host)
+const explicitEnvBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE
+let resolvedBase: string
+if (explicitEnvBase) {
+  resolvedBase = explicitEnvBase.replace(/\/$/, '') // trim trailing slash
+} else if (window.location.port === '5173') {
+  // Dev fallback if not explicitly configured
+  resolvedBase = 'http://127.0.0.1:8000/api'
+} else {
+  // Production / same-origin fallback
+  resolvedBase = '/api'
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE || '/api',
-  timeout: 30000,
+  baseURL: resolvedBase,
+  timeout: 120*1000,
+  withCredentials: true,
 })
+
+// Debug interceptors (can be toggled off later)
+api.interceptors.request.use(cfg => {
+  // eslint-disable-next-line no-console
+  const method = (cfg.method || 'GET').toUpperCase()
+  const fullUrl = `${cfg.baseURL || ''}${cfg.url || ''}`
+  console.debug('[api][request]', method, fullUrl)
+  return cfg
+})
+api.interceptors.response.use(
+  resp => resp,
+  err => {
+    // eslint-disable-next-line no-console
+    const eCfg = err.config || {}
+    const fullUrl = `${eCfg.baseURL || ''}${eCfg.url || ''}`
+    console.error('[api][error]', err.message, {
+      url: fullUrl,
+      status: err.response?.status,
+      data: err.response?.data,
+    })
+    return Promise.reject(err)
+  }
+)
+
+export const API_BASE = resolvedBase
 
 // Health check
 export const getHealth = async (): Promise<HealthStatus> => {

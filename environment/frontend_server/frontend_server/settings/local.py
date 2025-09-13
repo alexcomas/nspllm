@@ -25,7 +25,10 @@ SECRET_KEY = "c7l%1%b=2sh$o9zqvd4i*h8*__^@-5sm-y)m(1ib2t92)43@62"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+CORS_ORIGIN_ALLOW_ALL = True  # legacy setting for django-cors-headers 2.5.3
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = ["*"]
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -43,14 +46,16 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "api.middleware.RequestLoggingMiddleware",
+    "api.cors_fallback_middleware.EnsureCORSHeadersMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     # 'django.middleware.csrf.CsrfViewMiddleware',
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
 ]
 
 ROOT_URLCONF = "frontend_server.urls"
@@ -128,3 +133,32 @@ STATICFILES_DIRS = (os.path.join(BASE_DIR, "static_dirs"),)
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(os.path.dirname(BASE_DIR), "media_root")
+
+# Logging configuration (local) – mirrors base settings.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "[%(asctime)s] %(levelname)s %(name)s %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "api.request": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": True,
+        },
+    },
+}
