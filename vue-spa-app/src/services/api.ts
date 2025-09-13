@@ -20,7 +20,7 @@ if (explicitEnvBase) {
 
 const api = axios.create({
   baseURL: resolvedBase,
-  timeout: 120*1000,
+  timeout: 180 * 1000,
   withCredentials: true,
 })
 
