@@ -37,14 +37,38 @@ export const personaAssets: Record<string, PersonaAssetConfig> = {
   'Tamara Taylor': { image: '/assets/characters/Tamara_Taylor.png', emoji: '🎬' },
 }
 
+export interface TilesetConfig {
+  key: string
+  path: string
+  tileWidth?: number
+  tileHeight?: number
+  margin?: number
+  spacing?: number
+}
+
 export const tilemapConfig = {
   mapJson: '/assets/the_ville/visuals/the_ville_jan7.json',
-  // A minimal selected subset of tilesets used by the map; ensure these exist in public folder.
+  // All tilesets from the Tiled map JSON with proper dimensions - ensure these exist in public folder.
   tilesets: [
-    { key: 'blocks_1', path: '/assets/the_ville/visuals/map_assets/blocks/blocks_1.png' },
-    { key: 'Room_Builder_32x32', path: '/assets/the_ville/visuals/map_assets/v1/Room_Builder_32x32.png' },
-    { key: 'interiors_pt1', path: '/assets/the_ville/visuals/map_assets/v1/interiors_pt1.png' },
-  ],
+    { key: 'CuteRPG_Field_B', path: '/assets/the_ville/visuals/map_assets/cute_rpg_word_VXAce/tilesets/CuteRPG_Field_B.png', tileWidth: 32, tileHeight: 32, margin: 0, spacing: 0 },
+    { key: 'CuteRPG_Field_C', path: '/assets/the_ville/visuals/map_assets/cute_rpg_word_VXAce/tilesets/CuteRPG_Field_C.png', tileWidth: 32, tileHeight: 32, margin: 0, spacing: 0 },
+    { key: 'CuteRPG_Harbor_C', path: '/assets/the_ville/visuals/map_assets/cute_rpg_word_VXAce/tilesets/CuteRPG_Harbor_C.png', tileWidth: 32, tileHeight: 32, margin: 0, spacing: 0 },
+    { key: 'Room_Builder_32x32', path: '/assets/the_ville/visuals/map_assets/v1/Room_Builder_32x32.png', tileWidth: 32, tileHeight: 32, margin: 0, spacing: 0 },
+    { key: 'CuteRPG_Village_B', path: '/assets/the_ville/visuals/map_assets/cute_rpg_word_VXAce/tilesets/CuteRPG_Village_B.png', tileWidth: 32, tileHeight: 32, margin: 0, spacing: 0 },
+    { key: 'CuteRPG_Forest_B', path: '/assets/the_ville/visuals/map_assets/cute_rpg_word_VXAce/tilesets/CuteRPG_Forest_B.png', tileWidth: 32, tileHeight: 32, margin: 0, spacing: 0 },
+    { key: 'CuteRPG_Desert_C', path: '/assets/the_ville/visuals/map_assets/cute_rpg_word_VXAce/tilesets/CuteRPG_Desert_C.png', tileWidth: 32, tileHeight: 32, margin: 0, spacing: 0 },
+    { key: 'CuteRPG_Mountains_B', path: '/assets/the_ville/visuals/map_assets/cute_rpg_word_VXAce/tilesets/CuteRPG_Mountains_B.png', tileWidth: 32, tileHeight: 32, margin: 0, spacing: 0 },
+    { key: 'CuteRPG_Desert_B', path: '/assets/the_ville/visuals/map_assets/cute_rpg_word_VXAce/tilesets/CuteRPG_Desert_B.png', tileWidth: 32, tileHeight: 32, margin: 0, spacing: 0 },
+    { key: 'CuteRPG_Forest_C', path: '/assets/the_ville/visuals/map_assets/cute_rpg_word_VXAce/tilesets/CuteRPG_Forest_C.png', tileWidth: 32, tileHeight: 32, margin: 0, spacing: 0 },
+    { key: 'interiors_pt1', path: '/assets/the_ville/visuals/map_assets/v1/interiors_pt1.png', tileWidth: 32, tileHeight: 32, margin: 0, spacing: 0 },
+    { key: 'interiors_pt2', path: '/assets/the_ville/visuals/map_assets/v1/interiors_pt2.png', tileWidth: 32, tileHeight: 32, margin: 0, spacing: 0 },
+    { key: 'interiors_pt3', path: '/assets/the_ville/visuals/map_assets/v1/interiors_pt3.png', tileWidth: 32, tileHeight: 32, margin: 0, spacing: 0 },
+    { key: 'interiors_pt4', path: '/assets/the_ville/visuals/map_assets/v1/interiors_pt4.png', tileWidth: 32, tileHeight: 32, margin: 0, spacing: 0 },
+    { key: 'interiors_pt5', path: '/assets/the_ville/visuals/map_assets/v1/interiors_pt5.png', tileWidth: 32, tileHeight: 32, margin: 0, spacing: 0 },
+    { key: 'blocks', path: '/assets/the_ville/visuals/map_assets/blocks/blocks_1.png', tileWidth: 32, tileHeight: 32, margin: 0, spacing: 0 },
+    { key: 'blocks_2', path: '/assets/the_ville/visuals/map_assets/blocks/blocks_2.png', tileWidth: 32, tileHeight: 32, margin: 0, spacing: 0 },
+    { key: 'blocks_3', path: '/assets/the_ville/visuals/map_assets/blocks/blocks_3.png', tileWidth: 32, tileHeight: 32, margin: 0, spacing: 0 },
+  ] as TilesetConfig[],
   // Layers we will attempt to render (must match names inside JSON)
   layers: [
     'Bottom Ground',

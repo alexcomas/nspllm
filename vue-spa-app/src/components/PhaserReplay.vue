@@ -5,10 +5,41 @@
       <button @click="zoomOut" title="Zoom Out">-</button>
       <button @click="zoomIn" title="Zoom In">+</button>
     </div>
+    <div class="layer-controls">
+      <label v-for="layer in allLayerOptions" :key="layer" class="layer-checkbox">
+        <input type="checkbox" :value="layer" v-model="selectedLayers" />
+        {{ layer }}
+      </label>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+// All possible layers (from config)
+const allLayerOptions = tilemapConfig.layers
+// User-selected layers to render
+const selectedLayers = ref([...tilemapConfig.layers])
+
+// Watch for changes to selectedLayers and re-init Phaser game
+watch(selectedLayers, () => {
+  if (game) {
+    game.destroy(true)
+    game = null
+  }
+  // Clear sprite and label maps to avoid referencing destroyed objects
+  for (const k in spriteMap) { spriteMap[k].destroy?.(); delete spriteMap[k]; }
+  for (const k in labelMap) { labelMap[k].destroy?.(); delete labelMap[k]; }
+  // Wait for DOM cleanup
+  setTimeout(() => {
+    initGame()
+    // Restore zoom after re-init
+    setTimeout(() => {
+      if (game && game.scene.keys['ReplayScene']) {
+        game.scene.keys['ReplayScene'].cameras.main.setZoom(zoom.value)
+      }
+    }, 300)
+  }, 0)
+}, { deep: true })
 // Camera zoom state
 import { ref as vueRef } from 'vue'
 const zoom = vueRef(1)
@@ -95,7 +126,7 @@ class ReplayScene extends Phaser.Scene {
   constructor() { super('ReplayScene') }
   preload() {
     // Tilesets & map
-    this.load.json('world_map_json', tilemapConfig.mapJson)
+    this.load.tilemapTiledJSON('world_map_json', tilemapConfig.mapJson)
     for (const ts of tilemapConfig.tilesets) {
       this.load.image(ts.key, ts.path)
     }
@@ -107,14 +138,14 @@ class ReplayScene extends Phaser.Scene {
       }
     }
     // Fallback circle
-    const g = this.add.graphics()
-    g.fillStyle(0x42b883, 1)
-    g.fillCircle(16,16,16)
-    g.generateTexture('agent_circle', 32,32)
-    g.destroy()
+    // const g = this.add.graphics()
+    // g.fillStyle(0x42b883, 1)
+    // g.fillCircle(16,16,16)
+    // g.generateTexture('agent_circle', 32,32)
+    // g.destroy()
   }
   create() {
-    this.cameras.main.setBackgroundColor('#1e1f22')
+    this.cameras.main.setBackgroundColor('#f0f0f0')
     this.buildMap()
     this.time.addEvent({ delay: 200, loop: true, callback: () => this.refreshFrame() })
 
@@ -167,19 +198,57 @@ class ReplayScene extends Phaser.Scene {
       const raw: any = this.cache.json.get('world_map_json')
       if (!raw) throw new Error('Tilemap JSON missing')
       // Create Phaser tilemap from Tiled JSON
-      const map = this.make.tilemap({ data: undefined, key: 'world_map_json', tileWidth: 32, tileHeight: 32 })
+      const map = this.make.tilemap({ key: 'world_map_json' })
       // Add tilesets
       const tilesetObjs: Record<string, Phaser.Tilemaps.Tileset> = {}
       for (const ts of tilemapConfig.tilesets) {
-        const tileset = map.addTilesetImage(ts.key, ts.key)
+        const tileset = map.addTilesetImage(
+          ts.key, 
+          ts.key, 
+          ts.tileWidth || 32, 
+          ts.tileHeight || 32, 
+          ts.margin || 0, 
+          ts.spacing || 0
+        )
         if (tileset) tilesetObjs[ts.key] = tileset
+        // Log whether the image is loaded for this tileset key
+        const isLoaded = this.textures.exists(ts.key)
+        console.log(`[PhaserReplay] Tileset '${ts.key}' loaded:`, isLoaded)
       }
-      // Render layers in order
-      for (const layerName of tilemapConfig.layers) {
+      // Log all tilelayer names in the map JSON
+      const allTileLayerNames = (raw.layers || []).filter((l:any) => l.type === 'tilelayer').map((l:any) => l.name);
+      console.log('[PhaserReplay] All tilelayers in map JSON:', allTileLayerNames);
+
+      // Log tilesets array from Tiled map JSON (firstgid, name, image)
+      if (Array.isArray(raw.tilesets)) {
+        console.log('[PhaserReplay] Tilesets in map JSON:', raw.tilesets.map(ts => ({
+          firstgid: ts.firstgid,
+          name: ts.name,
+          image: ts.image
+        })))
+      }
+
+      // Render only user-selected layers
+      const renderedLayers: string[] = [];
+      for (const layerName of selectedLayers.value) {
         const layerData = raw.layers.find((l:any) => l.name === layerName && l.type === 'tilelayer')
         if (!layerData) continue
         // Compose tileset array for this layer (Phaser expects all tilesets, even if not used)
         const tilesets = Object.values(tilesetObjs)
+        // Gather GID stats for this layer
+        const gidCounts: Record<number, number> = {}
+        if (Array.isArray(layerData.data)) {
+          for (const gid of layerData.data) {
+            if (gid > 0) gidCounts[gid] = (gidCounts[gid] || 0) + 1
+          }
+        }
+        // Log GID stats and tileset keys
+        console.log(`[PhaserReplay] Layer '${layerName}':`, {
+          tilesets: Object.keys(tilesetObjs),
+          gidCounts,
+          nonzeroTiles: Object.values(gidCounts).reduce((a,b)=>a+b,0),
+          totalTiles: Array.isArray(layerData.data) ? layerData.data.length : 0
+        })
         // Create blank layer and populate with data
         const tileLayer = map.createBlankLayer(layerName, tilesets, 0, 0)
         if (tileLayer && Array.isArray(layerData.data)) {
@@ -190,9 +259,12 @@ class ReplayScene extends Phaser.Scene {
               if (gid > 0) tileLayer.putTileAt(gid - 1, x, y)
             }
           }
-          tileLayer.setDepth(layerData.id || 0)
+          // Set depth to layer order for correct stacking
+          tileLayer.setDepth(tilemapConfig.layers.indexOf(layerName))
+          renderedLayers.push(layerName)
         }
       }
+      console.log('[PhaserReplay] Rendered layers:', renderedLayers)
       this.map = map
     } catch (e) {
       console.warn('[PhaserReplay] Map build failed', e)
@@ -356,8 +428,40 @@ watch(() => props.replay, () => {
 </script>
 
 <style scoped>
-.phaser-replay { position: relative; width: 100%; min-height: 480px; border:1px solid #d8dfe6; border-radius:8px; background:#f5f7fa; }
+.phaser-replay {
+  position: relative;
+  width: 100%;
+  max-width: 800px;
+  height: 480px;
+  min-height: 480px;
+  overflow: hidden;
+  border:1px solid #d8dfe6;
+  border-radius:8px;
+  background:#f5f7fa;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
 .empty { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#777; font-size:0.9rem; }
+.layer-controls {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  z-index: 11;
+  background: rgba(255,255,255,0.95);
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 90%;
+  overflow-y: auto;
+}
+.layer-checkbox {
+  font-size: 0.95rem;
+  user-select: none;
+  white-space: nowrap;
+}
   .zoom-controls {
     position: absolute;
     top: 12px;
