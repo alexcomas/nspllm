@@ -39,11 +39,11 @@ Contract files discovered in `/home/ledwo/nspllm/specs/002-adapt-generative-agen
 - `planning_module.md`
 - `llm_provider_contract.md`
 
-- [ ] T004 [P] Contract test for PlanningModule interface in `/home/ledwo/nspllm/tests/contract/test_planning_module_contract.py`
+- [x] T004 [P] Contract test for PlanningModule interface in `/home/ledwo/nspllm/tests/contract/test_planning_module_contract.py`
   - Assert methods exist: `plan`, `replan`, `next_action`
   - Determinism: same inputs + seed → same outputs
   - Errors: domain-specific exceptions on invalid input
-- [ ] T005 [P] Contract test for LLM Provider abstraction in `/home/ledwo/nspllm/tests/contract/test_llm_provider_contract.py`
+- [x] T005 [P] Contract test for LLM Provider abstraction in `/home/ledwo/nspllm/tests/contract/test_llm_provider_contract.py`
   - Methods: `generate(prompt, **kwargs)`, `structured(prompt, schema, **kwargs)`, `call_function(prompt, functions, **kwargs)`
   - Error types: rate limit/timeout are consistent
   - Metadata: request/response metadata accessible for logging
