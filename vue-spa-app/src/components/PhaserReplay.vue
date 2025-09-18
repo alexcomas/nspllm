@@ -43,9 +43,9 @@ watch(selectedLayers, () => {
 // Camera zoom state
 import { ref as vueRef } from 'vue'
 const zoom = vueRef(1)
-const minZoom = 0.5
-const maxZoom = 2.5
-const zoomStep = 0.2
+const minZoom = 0.1  // Allow much more zooming out
+const maxZoom = 3.0  // Allow a bit more zooming in
+const zoomStep = 0.1  // Smaller steps for finer control
 
 function zoomIn() {
   zoom.value = Math.min(maxZoom, zoom.value + zoomStep)
@@ -107,8 +107,8 @@ const bounds = computeBounds()
 function tileToPixel(tileX: number, tileY: number): { x: number, y: number } {
   const TILE_SIZE = 32; // Standard tile size from Tiled
   return {
-    x: tileX * TILE_SIZE + TILE_SIZE / 2, // Center of tile
-    y: tileY * TILE_SIZE + TILE_SIZE / 2  // Center of tile
+    x: tileX * TILE_SIZE + TILE_SIZE / 2, // Center horizontally
+    y: (tileY + 1) * TILE_SIZE - TILE_SIZE / 4  // Position at bottom of tile (3/4 down)
   };
 }
 
@@ -169,8 +169,14 @@ class ReplayScene extends Phaser.Scene {
       if (this._dragging) {
         const dx = pointer.x - this._dragStartX
         const dy = pointer.y - this._dragStartY
-        this.cameras.main.scrollX = this._camStartX - dx
-        this.cameras.main.scrollY = this._camStartY - dy
+        
+        // Scale the movement by the inverse of the zoom level
+        // When zoomed out (small zoom), movement should be amplified
+        // When zoomed in (large zoom), movement should be dampened
+        const zoomScale = 1 / this.cameras.main.zoom
+        
+        this.cameras.main.scrollX = this._camStartX - (dx * zoomScale)
+        this.cameras.main.scrollY = this._camStartY - (dy * zoomScale)
       }
     })
     // Prevent context menu on right drag
@@ -259,8 +265,8 @@ class ReplayScene extends Phaser.Scene {
         // Include all tilesets that contain wall tiles based on analysis of the data
         const wallLayer = map.createLayer("Wall", tileset_group_1, 0, 0);
         if (wallLayer) {
-          wallLayer.setDepth(10); // Make sure walls render above ground layers
-          console.log('✓ Wall layer created with high depth');
+          wallLayer.setDepth(4.5); // Between Interior Ground (4) and Furniture (5-6)
+          console.log('✓ Wall layer created with correct depth');
         }
       }
       
@@ -372,7 +378,7 @@ class ReplayScene extends Phaser.Scene {
       } else if (sprite) {
         sprite.setPosition(x, y)
       }
-      sprite.setDepth(y)
+      sprite.setDepth(y + 1000) // Ensure agents render above all map layers
       // Pronunciatio overlay (emoji or text bubble)
       const bubble = extractEmojiFromAction(agent.current_action, personaCfg?.emoji)
       const labelText = bubble ? `${bubble}` : initials(agent.name)

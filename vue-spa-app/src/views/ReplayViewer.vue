@@ -38,17 +38,28 @@
       </div>
 
       <div class="replay-display">
-        <div class="environment-info">
-          <h3>Environment</h3>
-          <p>Time: {{ currentFrameData?.timestamp }}</p>
-            <p>Step: {{ currentFrameData?.step }}</p>
-            <div v-if="currentFrameData?.events.length" class="events">
-              <h4>Events:</h4>
-              <ul>
-                <li v-for="event in currentFrameData.events" :key="event">{{ event }}</li>
-              </ul>
+        <!-- Left sidebar: Agents list in one column -->
+        <div class="agents-sidebar">
+          <h3>Agents ({{ currentFrameData?.agents.length || 0 }})</h3>
+          <div class="agents-list">
+            <div
+              v-for="agent in currentFrameData?.agents"
+              :key="agent.id"
+              class="agent-card-compact"
+              @click="focusAgent(agent.id)"
+              :style="{ cursor: usePhaser ? 'pointer' : undefined }"
+            >
+              <h4>{{ agent.name }}</h4>
+              <p class="location">
+                <span v-if="agent.location.area && agent.location.area !== ''">📍 {{ agent.location.area }}</span>
+                <span class="coords">({{ agent.location.x }}, {{ agent.location.y }})</span>
+              </p>
+              <p class="action">🎬 {{ agent.current_action }}</p>
             </div>
+          </div>
         </div>
+
+        <!-- Main area: Map -->
         <div class="visual-pane">
           <div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.5rem;">
             <h3 style="margin:0;">Spatial Replay</h3>
@@ -66,33 +77,49 @@
             :focusedAgentId="usePhaser ? focusedAgentId : undefined"
             ref="phaserReplayRef"
           />
-          <div class="agents-display">
-            <h3 style="margin-top:1.25rem;">Agents ({{ currentFrameData?.agents.length || 0 }})</h3>
-            <div class="agents-grid">
-              <div
-                v-for="agent in currentFrameData?.agents"
-                :key="agent.id"
-                class="agent-card"
-                @click="focusAgent(agent.id)"
-                :style="{ cursor: usePhaser ? 'pointer' : undefined }"
-              >
-                <h4>{{ agent.name }}</h4>
-                <p class="persona">{{ agent.persona }}</p>
-                <p class="location">
-                  <span v-if="agent.location.area && agent.location.area !== ''">📍 {{ agent.location.area }} </span>
-                  <span>(x: {{ agent.location.x }}, y: {{ agent.location.y }})</span>
-                </p>
-                <p class="action"><strong>🎬 {{ agent.current_action }}</strong></p>
-                <div class="emotions">
-                  <span
-                    v-for="(value, emotion) in agent.emotions"
-                    :key="emotion"
-                    class="emotion-badge"
-                    :style="{ opacity: value }"
-                  >
-                    {{ emotion }}: {{ Math.round(value * 100) }}%
-                  </span>
-                </div>
+        </div>
+      </div>
+
+      <!-- Bottom area: Environment info and detailed agent info -->
+      <div class="details-section">
+        <div class="environment-info">
+          <h3>Environment</h3>
+          <p>Time: {{ currentFrameData?.timestamp }}</p>
+          <p>Step: {{ currentFrameData?.step }}</p>
+          <div v-if="currentFrameData?.events.length" class="events">
+            <h4>Events:</h4>
+            <ul>
+              <li v-for="event in currentFrameData.events" :key="event">{{ event }}</li>
+            </ul>
+          </div>
+        </div>
+        
+        <div class="detailed-agents">
+          <h3>Agent Details</h3>
+          <div class="agents-grid-detailed">
+            <div
+              v-for="agent in currentFrameData?.agents"
+              :key="agent.id"
+              class="agent-card-detailed"
+              @click="focusAgent(agent.id)"
+              :style="{ cursor: usePhaser ? 'pointer' : undefined }"
+            >
+              <h4>{{ agent.name }}</h4>
+              <p class="persona">{{ agent.persona }}</p>
+              <p class="location">
+                <span v-if="agent.location.area && agent.location.area !== ''">📍 {{ agent.location.area }} </span>
+                <span>(x: {{ agent.location.x }}, y: {{ agent.location.y }})</span>
+              </p>
+              <p class="action"><strong>🎬 {{ agent.current_action }}</strong></p>
+              <div class="emotions">
+                <span
+                  v-for="(value, emotion) in agent.emotions"
+                  :key="emotion"
+                  class="emotion-badge"
+                  :style="{ opacity: value }"
+                >
+                  {{ emotion }}: {{ Math.round(value * 100) }}%
+                </span>
               </div>
             </div>
           </div>
@@ -352,12 +379,65 @@ onUnmounted(() => {
 
 .replay-display {
   display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 2rem;
-  margin-bottom: 2rem;
+  grid-template-columns: 250px 1fr; /* Narrow left sidebar, wide main area */
+  gap: 1rem;
+  margin-bottom: 1rem;
 }
 
-.environment-info {
+.agents-sidebar {
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.agents-sidebar h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #2c3e50;
+  font-size: 1rem;
+}
+
+.agents-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.agent-card-compact {
+  background: #f9f9f9;
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.agent-card-compact:hover {
+  background: #f0f0f0;
+}
+
+.agent-card-compact h4 {
+  margin: 0 0 0.25rem 0;
+  color: #2c3e50;
+  font-size: 0.9rem;
+}
+
+.agent-card-compact .location,
+.agent-card-compact .action {
+  font-size: 0.75rem;
+  margin: 0.125rem 0;
+  color: #666;
+}
+
+.agent-card-compact .coords {
+  color: #888;
+  font-size: 0.7rem;
+}
+
+.visual-pane {
   background: white;
   padding: 1.5rem;
   border-radius: 8px;
@@ -369,62 +449,98 @@ onUnmounted(() => {
   color: #2c3e50;
 }
 
-.agents-display {
+.details-section {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.environment-info {
   background: white;
-  padding: 1.5rem;
+  padding: 1rem;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  margin-top: 1.5rem;
+  max-height: 300px;
 }
 
-.agents-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1rem;
+.environment-info h3 {
+  margin-top: 0;
+  color: #2c3e50;
+  font-size: 1rem;
 }
 
-.agent-card {
-  background: #f9f9f9;
+.detailed-agents {
+  background: white;
   padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.detailed-agents h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #2c3e50;
+  font-size: 1rem;
+}
+
+.agents-grid-detailed {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 0.75rem;
+}
+
+.agent-card-detailed {
+  background: #f9f9f9;
+  padding: 0.75rem;
   border-radius: 6px;
   border: 1px solid #e0e0e0;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
-.agent-card h4 {
-  margin: 0 0 0.5rem 0;
+.agent-card-detailed:hover {
+  background: #f0f0f0;
+}
+
+.agent-card-detailed h4 {
+  margin: 0 0 0.25rem 0;
   color: #2c3e50;
+  font-size: 0.9rem;
 }
 
 .persona {
   font-style: italic;
   color: #666;
-  font-size: 0.875rem;
-  margin: 0.25rem 0;
+  font-size: 0.75rem;
+  margin: 0.125rem 0;
 }
 
 .location, .action {
-  font-size: 0.875rem;
-  margin: 0.25rem 0;
+  font-size: 0.75rem;
+  margin: 0.125rem 0;
 }
 
 .emotions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
-  margin-top: 0.5rem;
+  gap: 0.125rem;
+  margin-top: 0.25rem;
 }
 
 .emotion-badge {
-  padding: 0.125rem 0.5rem;
+  padding: 0.0625rem 0.25rem;
   background: #42b883;
   color: white;
-  border-radius: 12px;
-  font-size: 0.75rem;
+  border-radius: 8px;
+  font-size: 0.625rem;
 }
 
 .replay-metadata {
   background: white;
-  padding: 1.5rem;
+  padding: 1rem;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
@@ -432,5 +548,32 @@ onUnmounted(() => {
 .replay-metadata h3 {
   margin-top: 0;
   color: #2c3e50;
+  font-size: 1rem;
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+  .replay-display {
+    grid-template-columns: 200px 1fr;
+  }
+  
+  .details-section {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .agents-grid-detailed {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .replay-display {
+    grid-template-columns: 1fr;
+  }
+  
+  .agents-sidebar {
+    max-height: 200px;
+  }
 }
 </style>
