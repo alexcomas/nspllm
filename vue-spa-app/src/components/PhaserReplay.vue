@@ -103,14 +103,13 @@ function computeBounds() {
 const bounds = computeBounds()
 
 
-// Scaling helpers
-function worldToScreen(x:number, y:number, scene: Phaser.Scene) {
-  const pad = 32
-  const w = scene.scale.width - pad * 2
-  const h = scene.scale.height - pad * 2
-  const sx = pad + ( (x - bounds.minX) / (bounds.maxX - bounds.minX) ) * w
-  const sy = pad + ( (y - bounds.minY) / (bounds.maxY - bounds.minY) ) * h
-  return { x: sx, y: sy }
+// Scaling helpers - converts tile coordinates to pixel coordinates
+function tileToPixel(tileX: number, tileY: number): { x: number, y: number } {
+  const TILE_SIZE = 32; // Standard tile size from Tiled
+  return {
+    x: tileX * TILE_SIZE + TILE_SIZE / 2, // Center of tile
+    y: tileY * TILE_SIZE + TILE_SIZE / 2  // Center of tile
+  };
 }
 
 // Camera follow state (module-level, so we can expose a method)
@@ -191,8 +190,10 @@ class ReplayScene extends Phaser.Scene {
     console.log('Created tilemap:', map);
     
     // Add tilesets using the exact names from the JSON, following Python implementation
-    const collisions = map.addTilesetImage("blocks", "blocks_1");
-    const walls = map.addTilesetImage("Room_Builder_32x32", "walls");
+    const collisions = map.addTilesetImage("blocks", "blocks");
+    const blocks_2 = map.addTilesetImage("blocks_2", "blocks_2");
+    const blocks_3 = map.addTilesetImage("blocks_3", "blocks_3");
+    const walls = map.addTilesetImage("Room_Builder_32x32", "Room_Builder_32x32");
     const interiors_pt1 = map.addTilesetImage("interiors_pt1", "interiors_pt1");
     const interiors_pt2 = map.addTilesetImage("interiors_pt2", "interiors_pt2");
     const interiors_pt3 = map.addTilesetImage("interiors_pt3", "interiors_pt3");
@@ -214,52 +215,84 @@ class ReplayScene extends Phaser.Scene {
     const tileset_group_1 = [
       CuteRPG_Field_B, CuteRPG_Field_C, CuteRPG_Harbor_C, CuteRPG_Village_B, 
       CuteRPG_Forest_B, CuteRPG_Desert_C, CuteRPG_Mountains_B, CuteRPG_Desert_B, CuteRPG_Forest_C,
-      interiors_pt1, interiors_pt2, interiors_pt3, interiors_pt4, interiors_pt5, walls
+      interiors_pt1, interiors_pt2, interiors_pt3, interiors_pt4, interiors_pt5, walls,
+      collisions, blocks_2, blocks_3
     ].filter(t => t !== null); // Filter out any null tilesets
     
-    // Create layers exactly like the Python implementation
+    // Create layers exactly like the Python implementation, but only if selected by user
     try {
-      console.log('Creating Bottom Ground layer...');
-      const bottomGroundLayer = map.createLayer("Bottom Ground", tileset_group_1, 0, 0);
-      if (bottomGroundLayer) {
-        console.log('✓ Bottom Ground layer created successfully');
-        
-        // Count tiles for debugging
-        let tileCount = 0;
-        for (let y = 0; y < bottomGroundLayer.height; y++) {
-          for (let x = 0; x < bottomGroundLayer.width; x++) {
-            const tile = bottomGroundLayer.getTileAt(x, y);
-            if (tile && tile.index > 0) {
-              tileCount++;
-            }
-          }
+      console.log('Selected layers:', selectedLayers.value);
+      
+      if (selectedLayers.value.includes("Bottom Ground")) {
+        console.log('Creating Bottom Ground layer...');
+        const bottomGroundLayer = map.createLayer("Bottom Ground", tileset_group_1, 0, 0);
+        if (bottomGroundLayer) {
+          console.log('✓ Bottom Ground layer created successfully');
+          bottomGroundLayer.setDepth(0); // Bottom layer
+        } else {
+          console.error('✗ Failed to create Bottom Ground layer');
         }
-        console.log(`Bottom Ground layer has ${tileCount} tiles`);
-      } else {
-        console.error('✗ Failed to create Bottom Ground layer');
       }
       
-      // Create other layers
-      const exteriorGroundLayer = map.createLayer("Exterior Ground", tileset_group_1, 0, 0);
-      const exteriorDecorationL1Layer = map.createLayer("Exterior Decoration L1", tileset_group_1, 0, 0);
-      const exteriorDecorationL2Layer = map.createLayer("Exterior Decoration L2", tileset_group_1, 0, 0);
-      const interiorGroundLayer = map.createLayer("Interior Ground", tileset_group_1, 0, 0);
-      const wallLayer = map.createLayer("Wall", [CuteRPG_Field_C, walls].filter(t => t !== null), 0, 0);
-      const interiorFurnitureL1Layer = map.createLayer("Interior Furniture L1", tileset_group_1, 0, 0);
-      const interiorFurnitureL2Layer = map.createLayer("Interior Furniture L2 ", tileset_group_1, 0, 0);
-      const foregroundL1Layer = map.createLayer("Foreground L1", tileset_group_1, 0, 0);
-      const foregroundL2Layer = map.createLayer("Foreground L2", tileset_group_1, 0, 0);
-      
-      // Set depth for foreground layers
-      if (foregroundL1Layer) foregroundL1Layer.setDepth(2);
-      if (foregroundL2Layer) foregroundL2Layer.setDepth(2);
-      
-      const collisionsLayer = map.createLayer("Collisions", [collisions].filter(t => t !== null), 0, 0);
-      if (collisionsLayer) {
-        collisionsLayer.setCollisionByProperty({ collide: true });
+      if (selectedLayers.value.includes("Exterior Ground")) {
+        const exteriorGroundLayer = map.createLayer("Exterior Ground", tileset_group_1, 0, 0);
+        if (exteriorGroundLayer) exteriorGroundLayer.setDepth(1);
       }
       
-      console.log('All layers created');
+      if (selectedLayers.value.includes("Exterior Decoration L1")) {
+        const exteriorDecorationL1Layer = map.createLayer("Exterior Decoration L1", tileset_group_1, 0, 0);
+        if (exteriorDecorationL1Layer) exteriorDecorationL1Layer.setDepth(2);
+      }
+      
+      if (selectedLayers.value.includes("Exterior Decoration L2")) {
+        const exteriorDecorationL2Layer = map.createLayer("Exterior Decoration L2", tileset_group_1, 0, 0);
+        if (exteriorDecorationL2Layer) exteriorDecorationL2Layer.setDepth(3);
+      }
+      
+      if (selectedLayers.value.includes("Interior Ground")) {
+        const interiorGroundLayer = map.createLayer("Interior Ground", tileset_group_1, 0, 0);
+        if (interiorGroundLayer) interiorGroundLayer.setDepth(4);
+      }
+      
+      if (selectedLayers.value.includes("Wall")) {
+        console.log('Creating Wall layer...');
+        // Include all tilesets that contain wall tiles based on analysis of the data
+        const wallLayer = map.createLayer("Wall", tileset_group_1, 0, 0);
+        if (wallLayer) {
+          wallLayer.setDepth(10); // Make sure walls render above ground layers
+          console.log('✓ Wall layer created with high depth');
+        }
+      }
+      
+      if (selectedLayers.value.includes("Interior Furniture L1")) {
+        const interiorFurnitureL1Layer = map.createLayer("Interior Furniture L1", tileset_group_1, 0, 0);
+        if (interiorFurnitureL1Layer) interiorFurnitureL1Layer.setDepth(5);
+      }
+      
+      if (selectedLayers.value.includes("Interior Furniture L2 ")) {
+        const interiorFurnitureL2Layer = map.createLayer("Interior Furniture L2 ", tileset_group_1, 0, 0);
+        if (interiorFurnitureL2Layer) interiorFurnitureL2Layer.setDepth(6);
+      }
+      
+      if (selectedLayers.value.includes("Foreground L1")) {
+        const foregroundL1Layer = map.createLayer("Foreground L1", tileset_group_1, 0, 0);
+        if (foregroundL1Layer) foregroundL1Layer.setDepth(20); // Above everything
+      }
+      
+      if (selectedLayers.value.includes("Foreground L2")) {
+        const foregroundL2Layer = map.createLayer("Foreground L2", tileset_group_1, 0, 0);
+        if (foregroundL2Layer) foregroundL2Layer.setDepth(21); // Above everything
+      }
+      
+      if (selectedLayers.value.includes("Collisions")) {
+        const collisionsLayer = map.createLayer("Collisions", [collisions].filter(t => t !== null), 0, 0);
+        if (collisionsLayer) {
+          collisionsLayer.setCollisionByProperty({ collide: true });
+          collisionsLayer.setDepth(30); // Debug layer on top
+        }
+      }
+      
+      console.log('All selected layers created');
       
     } catch (error) {
       console.error('Error creating layers:', error);
@@ -276,7 +309,7 @@ class ReplayScene extends Phaser.Scene {
     if (focusedId && cameraFollowActive && !this._dragging) {
       const agent = frame.value.agents.find(a => a.id === focusedId)
       if (agent) {
-        const { x, y } = worldToScreen(agent.location.x, agent.location.y, scene)
+        const { x, y } = tileToPixel(agent.location.x, agent.location.y)
         this.cameras.main.pan(x, y, 200, 'Sine.easeInOut', false)
       }
     }
@@ -332,7 +365,7 @@ class ReplayScene extends Phaser.Scene {
         sprite.setTexture(key)
         sprite.setCrop(frameX, frameY, frameW, frameH)
       }
-      const { x, y } = worldToScreen(agent.location.x, agent.location.y, scene)
+      const { x, y } = tileToPixel(agent.location.x, agent.location.y)
       // Tween movement for smoothness
       if (sprite && (Math.abs(sprite.x - x) > 1 || Math.abs(sprite.y - y) > 1)) {
         this.tweens.add({ targets: sprite, x, y, duration: 180, ease: 'Sine.easeInOut' })
