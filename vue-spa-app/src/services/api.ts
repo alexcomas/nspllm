@@ -103,7 +103,7 @@ export interface ReplayChunk {
 }
 
 export const getReplayChunk = async (id: string, offset = 0, limit = 100): Promise<ReplayChunk> => {
-  const response = await api.get(`/replays/${id}/`, { params: { offset, limit } })
+  const response = await api.get(`/replays/${id}/`, { params: { offset, limit, all_frames: 'true' } })
   return response.data
 }
 

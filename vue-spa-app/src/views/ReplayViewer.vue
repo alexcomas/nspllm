@@ -241,7 +241,18 @@ const loadReplay = async () => {
     // eslint-disable-next-line no-constant-condition
     while (true) {
       if (aborted) break
+      
+      console.debug(`[loadReplay] Fetching chunk with offset=${offset}, limit=${limit}`)
       const chunk = await getReplayChunk(props.id, offset, limit)
+      
+      console.debug(`[loadReplay] Received chunk:`, {
+        frames_received: chunk.frames.length,
+        metadata: chunk.metadata,
+        total_steps: chunk.metadata.total_steps,
+        has_more: chunk.metadata.has_more,
+        returned: chunk.metadata.returned,
+        current_offset: offset
+      })
 
       if (!replay.value) {
         // initialize replay container from metadata
@@ -256,11 +267,18 @@ const loadReplay = async () => {
             agent_count: chunk.metadata.agent_count,
           },
         }
+        console.debug(`[loadReplay] Initialized replay with total_steps=${chunk.metadata.total_steps}`)
       }
 
       // append frames
+      const framesBefore = replay.value.frames.length
       replay.value.frames.push(...chunk.frames)
-      offset += chunk.metadata.returned
+      const framesAfter = replay.value.frames.length
+      
+      // Use actual frames received for offset calculation instead of metadata.returned
+      offset = framesAfter
+
+      console.debug(`[loadReplay] Frames before: ${framesBefore}, after: ${framesAfter}, new offset: ${offset}`)
 
       // update progress (real, based on total)
       const total = replay.value.metadata.total_steps || replay.value.frames.length
@@ -278,7 +296,14 @@ const loadReplay = async () => {
 
       if (!chunk.metadata.has_more) {
         // complete
+        console.debug(`[loadReplay] Loading complete. Total frames loaded: ${replay.value.frames.length}, expected: ${replay.value.metadata.total_steps}`)
         loadProgress.value = 100
+        break
+      }
+
+      // Break infinite loop if no frames received
+      if (chunk.frames.length === 0) {
+        console.warn('[loadReplay] Received 0 frames but has_more=true, breaking to prevent infinite loop')
         break
       }
 

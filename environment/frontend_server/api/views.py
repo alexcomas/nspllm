@@ -341,6 +341,7 @@ def get_replay(request, replay_id):
         # Unified logic for both compressed and environment-based replays
         offset = int(request.GET.get('offset', 0))
         limit = int(request.GET.get('limit', 100))
+        all_frames = request.GET.get('all_frames', 'false').lower() == 'true'
         frames = []
         persona_names = set()
         meta = None
@@ -358,7 +359,7 @@ def get_replay(request, replay_id):
                 movement_data = json.load(f)
             persona_names = set(meta["persona_names"])
             step_keys = sorted([int(k) for k in movement_data.keys()])
-            sample_steps = step_keys[::10] if len(step_keys) > 100 else step_keys
+            sample_steps = step_keys if all_frames else (step_keys[::10] if len(step_keys) > 100 else step_keys)
         else:
             # Fallback: try to build frames from environment files if available
             env_path = os.path.join("storage", replay_id, "environment")
@@ -368,7 +369,7 @@ def get_replay(request, replay_id):
                     steps = [(int(os.path.basename(f).split('.')[0]), f) for f in env_files]
                     steps.sort()
                     step_keys = [s[0] for s in steps]
-                    sample_steps = step_keys[::10] if len(step_keys) > 100 else step_keys
+                    sample_steps = step_keys if all_frames else (step_keys[::10] if len(step_keys) > 100 else step_keys)
                     env_file_map = {s[0]: s[1] for s in steps}
         # Apply chunking
         chunk_steps = sample_steps[offset:offset+limit]
@@ -484,12 +485,12 @@ def get_replay(request, replay_id):
             })
         # Metadata
         if is_compressed and meta:
-            total_steps = meta["step"]
+            total_steps = meta["step"]  # Always use the actual total steps
             duration_seconds = meta["step"] * meta["sec_per_step"]
             agent_count = len(persona_names)
         else:
-            total_steps = len(sample_steps)
-            duration_seconds = len(sample_steps) * 10  # Unknown sec_per_step, default 10
+            total_steps = len(step_keys)  # Use actual step_keys count, not sample_steps
+            duration_seconds = len(step_keys) * 10  # Unknown sec_per_step, default 10
             agent_count = len(persona_names)
         return JsonResponse({
             "id": replay_id,
