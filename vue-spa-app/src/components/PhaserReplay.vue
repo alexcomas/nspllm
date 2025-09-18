@@ -157,14 +157,17 @@ class ReplayScene extends Phaser.Scene {
         this._camStartX = this.cameras.main.scrollX
         this._camStartY = this.cameras.main.scrollY
         this._dragging = true
+        
+        // Add global event listeners to handle mouse events outside canvas
+        document.addEventListener('mouseup', this._globalMouseUp)
+        document.addEventListener('mousemove', this._globalMouseMove)
       }
     })
+    
     this.input.on('pointerup', () => {
-      this.input.setDefaultCursor('default')
-      this._dragging = false
-      // Disable camera follow after drag
-      cameraFollowActive = false
+      this._stopDragging()
     })
+    
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (this._dragging) {
         const dx = pointer.x - this._dragStartX
@@ -188,6 +191,40 @@ class ReplayScene extends Phaser.Scene {
   private _dragStartY = 0
   private _camStartX = 0
   private _camStartY = 0
+  
+  // Helper methods for drag handling
+  private _stopDragging() {
+    this.input.setDefaultCursor('default')
+    this._dragging = false
+    // Disable camera follow after drag
+    cameraFollowActive = false
+    // Remove global event listeners
+    document.removeEventListener('mouseup', this._globalMouseUp)
+    document.removeEventListener('mousemove', this._globalMouseMove)
+  }
+  
+  private _globalMouseUp = () => {
+    this._stopDragging()
+  }
+  
+  private _globalMouseMove = (event: MouseEvent) => {
+    if (!this._dragging) return
+    
+    // Calculate mouse movement relative to canvas
+    const canvas = this.game.canvas
+    const rect = canvas.getBoundingClientRect()
+    const currentX = event.clientX - rect.left
+    const currentY = event.clientY - rect.top
+    
+    // Calculate camera movement with zoom scaling
+    const zoomLevel = this.cameras.main.zoom
+    const deltaX = (currentX - this._dragStartX) / zoomLevel
+    const deltaY = (currentY - this._dragStartY) / zoomLevel
+    
+    this.cameras.main.scrollX = this._camStartX - deltaX
+    this.cameras.main.scrollY = this._camStartY - deltaY
+  }
+  
   buildMap() {
     console.log('Building map with tilemap JSON - Python style');
     
@@ -308,7 +345,6 @@ class ReplayScene extends Phaser.Scene {
   }
   refreshFrame() {
     if (!frame.value) return
-    const scene = this
     const present = new Set<string>()
     // Camera follow: focus on focusedAgentId if set and cameraFollowActive, but only if not dragging
     const focusedId = props.focusedAgentId
@@ -424,7 +460,7 @@ function initGame() {
   game = new Phaser.Game({
     type: Phaser.AUTO,
     width: container.value.clientWidth || 800,
-    height: 480,
+    height: container.value.clientHeight || 400,
     parent: container.value,
     backgroundColor: '#ffffff',
     scene: [ReplayScene],
@@ -467,14 +503,12 @@ watch(() => props.replay, () => {
 .phaser-replay {
   position: relative;
   width: 100%;
-  max-width: 800px;
-  height: 480px;
-  min-height: 480px;
+  height: 100%;
+  min-height: 400px;
   overflow: hidden;
   border:1px solid #d8dfe6;
   border-radius:8px;
   background:#f5f7fa;
-  margin: 0 auto;
   box-sizing: border-box;
 }
 .empty { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#777; font-size:0.9rem; }

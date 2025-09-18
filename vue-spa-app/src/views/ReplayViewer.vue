@@ -61,22 +61,24 @@
 
         <!-- Main area: Map -->
         <div class="visual-pane">
-          <div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.5rem;">
-            <h3 style="margin:0;">Spatial Replay</h3>
-            <label style="font-size:0.95rem;">
-              <input type="checkbox" v-model="usePhaser" style="vertical-align:middle;margin-right:0.4em;" />
+          <div class="visual-header">
+            <h3>Spatial Replay</h3>
+            <label>
+              <input type="checkbox" v-model="usePhaser" />
               Use Phaser (tilemap/assets)
             </label>
           </div>
-          <component
-            :is="usePhaser ? PhaserReplay : ReplayMap"
-            v-if="currentFrameData"
-            :replay="replay"
-            :frameIndex="currentFrame"
-            :frame="currentFrameData"
-            :focusedAgentId="usePhaser ? focusedAgentId : undefined"
-            ref="phaserReplayRef"
-          />
+          <div class="map-container">
+            <component
+              :is="usePhaser ? PhaserReplay : ReplayMap"
+              v-if="currentFrameData"
+              :replay="replay"
+              :frameIndex="currentFrame"
+              :frame="currentFrameData"
+              :focusedAgentId="usePhaser ? focusedAgentId : undefined"
+              ref="phaserReplayRef"
+            />
+          </div>
         </div>
       </div>
 
@@ -442,11 +444,40 @@ onUnmounted(() => {
   padding: 1.5rem;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  height: 600px;
+  display: flex;
+  flex-direction: column;
 }
 
 .visual-pane h3 {
   margin-top: 0;
   color: #2c3e50;
+}
+
+.visual-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  flex-shrink: 0;
+}
+
+.visual-header h3 {
+  margin: 0;
+}
+
+.visual-header label {
+  font-size: 0.95rem;
+}
+
+.visual-header input[type="checkbox"] {
+  vertical-align: middle;
+  margin-right: 0.4em;
+}
+
+.map-container {
+  flex: 1;
+  min-height: 0;
 }
 
 .details-section {
