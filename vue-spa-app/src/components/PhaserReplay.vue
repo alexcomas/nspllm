@@ -64,11 +64,22 @@ async function fetchNextReplayChunk() {
   }
 }
 
-function maybePrefetchReplayChunk(currentIndex: number, threshold = 20) {
+function maybePrefetchReplayChunk(currentIndex: number, threshold = 5) {
   if (streamingHasMore && streamedFrames.value.length - currentIndex < threshold) {
     fetchNextReplayChunk()
   }
 }
+
+// Periodic timer to ensure prefetching continues even if user scrubs quickly
+let prefetchTimer: number | null = null
+onMounted(() => {
+  prefetchTimer = window.setInterval(() => {
+    maybePrefetchReplayChunk(frameIndex.value)
+  }, 500)
+})
+onUnmounted(() => {
+  if (prefetchTimer) clearInterval(prefetchTimer)
+})
 
 // Initial load when replayId changes
 watch(replayId, (id) => {

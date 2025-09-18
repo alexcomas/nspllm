@@ -22,10 +22,21 @@
         </button>
         <button @click="stepBackward" class="control-btn">⏮️</button>
         <button @click="stepForward" class="control-btn">⏭️</button>
-        
+
+        <div class="velocity-control">
+          <label for="velocity" class="velocity-label">Speed:</label>
+          <select id="velocity" v-model.number="playbackSpeed" class="velocity-select">
+            <option :value="0.25">0.25x</option>
+            <option :value="0.5">0.5x</option>
+            <option :value="1">1x</option>
+            <option :value="2">2x</option>
+            <option :value="4">4x</option>
+          </select>
+        </div>
+
         <div class="timeline">
           <input 
-            v-model="currentFrame" 
+            v-model.number="currentFrame" 
             type="range" 
             :min="0" 
             :max="replay.frames.length - 1"
@@ -180,7 +191,9 @@ const remainingSeconds = computed(() => {
   return Math.ceil(remainMs / 1000)
 })
 const currentFrame = ref(0)
+
 const isPlaying = ref(false)
+const playbackSpeed = ref(1)
 let playInterval: ReturnType<typeof setInterval> | null = null
 
 const currentFrameData = computed((): ReplayFrame | null => {
@@ -221,7 +234,8 @@ const stepBackward = () => {
 }
 
 // Auto-play functionality
-watch(isPlaying, (playing) => {
+watch([isPlaying, playbackSpeed], ([playing, speed]) => {
+  if (playInterval) clearInterval(playInterval)
   if (playing) {
     playInterval = setInterval(() => {
       if (replay.value && currentFrame.value < replay.value.frames.length - 1) {
@@ -229,9 +243,7 @@ watch(isPlaying, (playing) => {
       } else {
         isPlaying.value = false
       }
-    }, 1000) // 1 frame per second
-  } else {
-    if (playInterval) clearInterval(playInterval)
+    }, 1000 / speed)
   }
 })
 
@@ -606,5 +618,40 @@ onUnmounted(() => {
   .agents-sidebar {
     max-height: 200px;
   }
+}
+/* Velocity control styles */
+.velocity-control {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  margin-right: 1.5rem;
+  margin-left: 0.5rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  height: 2.5rem;
+}
+.velocity-label {
+  font-size: 0.98rem;
+  color: #2c3e50;
+  font-weight: 500;
+  margin-right: 0.25rem;
+}
+.velocity-select {
+  padding: 0.35rem 1.2rem 0.35rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid #cfd8dc;
+  font-size: 1.05rem;
+  background: #fff;
+  color: #2c3e50;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  transition: border 0.2s, box-shadow 0.2s;
+}
+.velocity-select:focus {
+  outline: none;
+  border: 1.5px solid #42b883;
+  box-shadow: 0 0 0 2px #42b88322;
 }
 </style>
