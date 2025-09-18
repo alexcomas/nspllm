@@ -184,91 +184,88 @@ class ReplayScene extends Phaser.Scene {
   private _camStartX = 0
   private _camStartY = 0
   buildMap() {
-    // Destroy previous map and layers if they exist
-    if (this.map) {
-      this.map.layers.forEach((layer: any) => {
-        if (layer.tilemapLayer && layer.tilemapLayer.destroy) {
-          layer.tilemapLayer.destroy();
-        }
-      });
-      this.map.destroy();
-      this.map = undefined;
-    }
+    console.log('Building map with tilemap JSON - Python style');
+    
+    // Create the tilemap
+    const map = this.make.tilemap({ key: 'world_map_json' });
+    console.log('Created tilemap:', map);
+    
+    // Add tilesets using the exact names from the JSON, following Python implementation
+    const collisions = map.addTilesetImage("blocks", "blocks_1");
+    const walls = map.addTilesetImage("Room_Builder_32x32", "walls");
+    const interiors_pt1 = map.addTilesetImage("interiors_pt1", "interiors_pt1");
+    const interiors_pt2 = map.addTilesetImage("interiors_pt2", "interiors_pt2");
+    const interiors_pt3 = map.addTilesetImage("interiors_pt3", "interiors_pt3");
+    const interiors_pt4 = map.addTilesetImage("interiors_pt4", "interiors_pt4");
+    const interiors_pt5 = map.addTilesetImage("interiors_pt5", "interiors_pt5");
+    const CuteRPG_Field_B = map.addTilesetImage("CuteRPG_Field_B", "CuteRPG_Field_B");
+    const CuteRPG_Field_C = map.addTilesetImage("CuteRPG_Field_C", "CuteRPG_Field_C");
+    const CuteRPG_Harbor_C = map.addTilesetImage("CuteRPG_Harbor_C", "CuteRPG_Harbor_C");
+    const CuteRPG_Village_B = map.addTilesetImage("CuteRPG_Village_B", "CuteRPG_Village_B");
+    const CuteRPG_Forest_B = map.addTilesetImage("CuteRPG_Forest_B", "CuteRPG_Forest_B");
+    const CuteRPG_Desert_C = map.addTilesetImage("CuteRPG_Desert_C", "CuteRPG_Desert_C");
+    const CuteRPG_Mountains_B = map.addTilesetImage("CuteRPG_Mountains_B", "CuteRPG_Mountains_B");
+    const CuteRPG_Desert_B = map.addTilesetImage("CuteRPG_Desert_B", "CuteRPG_Desert_B");
+    const CuteRPG_Forest_C = map.addTilesetImage("CuteRPG_Forest_C", "CuteRPG_Forest_C");
+    
+    console.log('Added all tilesets');
+    
+    // Create tileset groups like in Python implementation
+    const tileset_group_1 = [
+      CuteRPG_Field_B, CuteRPG_Field_C, CuteRPG_Harbor_C, CuteRPG_Village_B, 
+      CuteRPG_Forest_B, CuteRPG_Desert_C, CuteRPG_Mountains_B, CuteRPG_Desert_B, CuteRPG_Forest_C,
+      interiors_pt1, interiors_pt2, interiors_pt3, interiors_pt4, interiors_pt5, walls
+    ].filter(t => t !== null); // Filter out any null tilesets
+    
+    // Create layers exactly like the Python implementation
     try {
-      const raw: any = this.cache.json.get('world_map_json')
-      if (!raw) throw new Error('Tilemap JSON missing')
-      // Create Phaser tilemap from Tiled JSON
-      const map = this.make.tilemap({ key: 'world_map_json' })
-      // Add tilesets
-      const tilesetObjs: Record<string, Phaser.Tilemaps.Tileset> = {}
-      for (const ts of tilemapConfig.tilesets) {
-        const tileset = map.addTilesetImage(
-          ts.key, 
-          ts.key, 
-          ts.tileWidth || 32, 
-          ts.tileHeight || 32, 
-          ts.margin || 0, 
-          ts.spacing || 0
-        )
-        if (tileset) tilesetObjs[ts.key] = tileset
-        // Log whether the image is loaded for this tileset key
-        const isLoaded = this.textures.exists(ts.key)
-        console.log(`[PhaserReplay] Tileset '${ts.key}' loaded:`, isLoaded)
-      }
-      // Log all tilelayer names in the map JSON
-      const allTileLayerNames = (raw.layers || []).filter((l:any) => l.type === 'tilelayer').map((l:any) => l.name);
-      console.log('[PhaserReplay] All tilelayers in map JSON:', allTileLayerNames);
-
-      // Log tilesets array from Tiled map JSON (firstgid, name, image)
-      if (Array.isArray(raw.tilesets)) {
-        console.log('[PhaserReplay] Tilesets in map JSON:', raw.tilesets.map(ts => ({
-          firstgid: ts.firstgid,
-          name: ts.name,
-          image: ts.image
-        })))
-      }
-
-      // Render only user-selected layers
-      const renderedLayers: string[] = [];
-      for (const layerName of selectedLayers.value) {
-        const layerData = raw.layers.find((l:any) => l.name === layerName && l.type === 'tilelayer')
-        if (!layerData) continue
-        // Compose tileset array for this layer (Phaser expects all tilesets, even if not used)
-        const tilesets = Object.values(tilesetObjs)
-        // Gather GID stats for this layer
-        const gidCounts: Record<number, number> = {}
-        if (Array.isArray(layerData.data)) {
-          for (const gid of layerData.data) {
-            if (gid > 0) gidCounts[gid] = (gidCounts[gid] || 0) + 1
-          }
-        }
-        // Log GID stats and tileset keys
-        console.log(`[PhaserReplay] Layer '${layerName}':`, {
-          tilesets: Object.keys(tilesetObjs),
-          gidCounts,
-          nonzeroTiles: Object.values(gidCounts).reduce((a,b)=>a+b,0),
-          totalTiles: Array.isArray(layerData.data) ? layerData.data.length : 0
-        })
-        // Create blank layer and populate with data
-        const tileLayer = map.createBlankLayer(layerName, tilesets, 0, 0)
-        if (tileLayer && Array.isArray(layerData.data)) {
-          for (let y = 0; y < layerData.height; y++) {
-            for (let x = 0; x < layerData.width; x++) {
-              const idx = y * layerData.width + x
-              const gid = layerData.data[idx]
-              if (gid > 0) tileLayer.putTileAt(gid - 1, x, y)
+      console.log('Creating Bottom Ground layer...');
+      const bottomGroundLayer = map.createLayer("Bottom Ground", tileset_group_1, 0, 0);
+      if (bottomGroundLayer) {
+        console.log('✓ Bottom Ground layer created successfully');
+        
+        // Count tiles for debugging
+        let tileCount = 0;
+        for (let y = 0; y < bottomGroundLayer.height; y++) {
+          for (let x = 0; x < bottomGroundLayer.width; x++) {
+            const tile = bottomGroundLayer.getTileAt(x, y);
+            if (tile && tile.index > 0) {
+              tileCount++;
             }
           }
-          // Set depth to layer order for correct stacking
-          tileLayer.setDepth(tilemapConfig.layers.indexOf(layerName))
-          renderedLayers.push(layerName)
         }
+        console.log(`Bottom Ground layer has ${tileCount} tiles`);
+      } else {
+        console.error('✗ Failed to create Bottom Ground layer');
       }
-      console.log('[PhaserReplay] Rendered layers:', renderedLayers)
-      this.map = map
-    } catch (e) {
-      console.warn('[PhaserReplay] Map build failed', e)
+      
+      // Create other layers
+      const exteriorGroundLayer = map.createLayer("Exterior Ground", tileset_group_1, 0, 0);
+      const exteriorDecorationL1Layer = map.createLayer("Exterior Decoration L1", tileset_group_1, 0, 0);
+      const exteriorDecorationL2Layer = map.createLayer("Exterior Decoration L2", tileset_group_1, 0, 0);
+      const interiorGroundLayer = map.createLayer("Interior Ground", tileset_group_1, 0, 0);
+      const wallLayer = map.createLayer("Wall", [CuteRPG_Field_C, walls].filter(t => t !== null), 0, 0);
+      const interiorFurnitureL1Layer = map.createLayer("Interior Furniture L1", tileset_group_1, 0, 0);
+      const interiorFurnitureL2Layer = map.createLayer("Interior Furniture L2 ", tileset_group_1, 0, 0);
+      const foregroundL1Layer = map.createLayer("Foreground L1", tileset_group_1, 0, 0);
+      const foregroundL2Layer = map.createLayer("Foreground L2", tileset_group_1, 0, 0);
+      
+      // Set depth for foreground layers
+      if (foregroundL1Layer) foregroundL1Layer.setDepth(2);
+      if (foregroundL2Layer) foregroundL2Layer.setDepth(2);
+      
+      const collisionsLayer = map.createLayer("Collisions", [collisions].filter(t => t !== null), 0, 0);
+      if (collisionsLayer) {
+        collisionsLayer.setCollisionByProperty({ collide: true });
+      }
+      
+      console.log('All layers created');
+      
+    } catch (error) {
+      console.error('Error creating layers:', error);
     }
+    
+    this.map = map;
   }
   refreshFrame() {
     if (!frame.value) return
@@ -292,7 +289,7 @@ class ReplayScene extends Phaser.Scene {
       // --- SPRITESHEET ANIMATION LOGIC ---
       // 4 rows (front, left, right, back), 3 cols (walk1, idle, walk2)
       // Determine direction and animation frame
-      let prev = agent.prev_location || agent.location
+      let prev = (agent as any).prev_location || agent.location
       let dx = agent.location.x - prev.x
       let dy = agent.location.y - prev.y
       let dir = 0 // 0:down, 1:left, 2:right, 3:up
@@ -306,7 +303,7 @@ class ReplayScene extends Phaser.Scene {
       let animCol = 1 // idle
       if (moving) {
         // Use frameIndex to alternate
-        animCol = (Math.floor(frame.value?.step/8 ?? 0) % 2 === 0) ? 0 : 2
+        animCol = (Math.floor((frame.value?.step || 0) / 8) % 2 === 0) ? 0 : 2
       }
       // Frame size (assume 32x32)
       const frameW = 32, frameH = 32
