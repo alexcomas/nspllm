@@ -30,9 +30,9 @@
 ```
 
 ## Phase 3.1: Setup
-- [ ] T001 [P] Create contract/integration test scaffolding in `/home/ledwo/nspllm/tests/contract/` and `/home/ledwo/nspllm/tests/integration/` (add `__init__.py` if missing)
-- [ ] T002 Verify pytest/ruff configuration; add `pytest.ini` in `/home/ledwo/nspllm/pytest.ini` for strict failures (xfail-strict=true), testpaths=`tests`
-- [ ] T003 [P] Add basic testing fixtures for seeding/log dirs in `/home/ledwo/nspllm/tests/conftest.py` (non-breaking, append-only)
+- [x] T001 [P] Create contract/integration test scaffolding in `/home/ledwo/nspllm/tests/contract/` and `/home/ledwo/nspllm/tests/integration/` (add `__init__.py` if missing)
+- [x] T002 Verify pytest/ruff configuration; add `pytest.ini` in `/home/ledwo/nspllm/pytest.ini` for strict failures (xfail-strict=true), testpaths=`tests`
+- [x] T003 [P] Add basic testing fixtures for seeding/log dirs in `/home/ledwo/nspllm/tests/conftest.py` (non-breaking, append-only)
 
 ## Phase 3.2: Tests First (TDD) ⚠️ MUST COMPLETE BEFORE 3.3
 Contract files discovered in `/home/ledwo/nspllm/specs/002-adapt-generative-agent/contracts/`:
