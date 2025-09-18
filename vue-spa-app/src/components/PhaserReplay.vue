@@ -102,13 +102,12 @@ function computeBounds() {
 
 const bounds = computeBounds()
 
-
+const TILE_SIZE = 32; // Standard tile size from Tiled
 // Scaling helpers - converts tile coordinates to pixel coordinates
 function tileToPixel(tileX: number, tileY: number): { x: number, y: number } {
-  const TILE_SIZE = 32; // Standard tile size from Tiled
   return {
     x: tileX * TILE_SIZE + TILE_SIZE / 2, // Center horizontally
-    y: (tileY + 1) * TILE_SIZE - TILE_SIZE / 4  // Position at bottom of tile (3/4 down)
+    y: (tileY + 1) * TILE_SIZE + TILE_SIZE / 4  // Position at bottom of tile (3/4 down)
   };
 }
 
@@ -407,7 +406,7 @@ class ReplayScene extends Phaser.Scene {
         sprite.setTexture(key)
         sprite.setCrop(frameX, frameY, frameW, frameH)
       }
-      const { x, y } = tileToPixel(agent.location.x, agent.location.y)
+      const { x, y } = tileToPixel(agent.location.x, agent.location.y + 2)
       // Tween movement for smoothness
       if (sprite && (Math.abs(sprite.x - x) > 1 || Math.abs(sprite.y - y) > 1)) {
         this.tweens.add({ targets: sprite, x, y, duration: 180, ease: 'Sine.easeInOut' })
@@ -418,13 +417,15 @@ class ReplayScene extends Phaser.Scene {
       // Pronunciatio overlay (emoji or text bubble)
       const bubble = extractEmojiFromAction(agent.current_action, personaCfg?.emoji)
       const labelText = bubble ? `${bubble}` : initials(agent.name)
+      const labelYOffset = bubble ? 3.75 * TILE_SIZE : 2 * TILE_SIZE
+      const labelXOffset = 0
       if (label) {
         label.setText(labelText)
         // Tween label too
-        if (Math.abs(label.x - x) > 1 || Math.abs(label.y - (y - 40)) > 1) {
-          this.tweens.add({ targets: label, x, y: y - 40, duration: 180, ease: 'Sine.easeInOut' })
+        if (Math.abs(label.x - (x - labelXOffset)) > 1 || Math.abs(label.y - (y - labelYOffset)) > 1) {
+          this.tweens.add({ targets: label, x: x + labelXOffset, y: y - labelYOffset, duration: 180, ease: 'Sine.easeInOut' })
         } else {
-          label.setPosition(x, y - 40)
+          label.setPosition(x, y - labelYOffset)
         }
         label.setDepth(y + 1000)
       }
