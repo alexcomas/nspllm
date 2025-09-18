@@ -51,7 +51,6 @@ export const API_BASE = resolvedBase
 
 // Health check
 export const getHealth = async (): Promise<HealthStatus> => {
-  return null
   const response = await api.get('/health/')
   return response.data
 }

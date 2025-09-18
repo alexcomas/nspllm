@@ -39,11 +39,13 @@
             v-model.number="currentFrame" 
             type="range" 
             :min="0" 
-            :max="replay.frames.length - 1"
+            :max="Math.max(0, totalFrames - 1)"
             class="timeline-slider"
+            :style="sliderGradientStyle"
           />
           <span class="frame-info">
-            Frame {{ currentFrame + 1 }} / {{ replay.frames.length }}
+            Frame {{ Math.min(currentFrame + 1, totalFrames || 0) }} / {{ totalFrames || 0 }}
+            <span v-if="loadedFrames < totalFrames"> (loaded {{ loadedFrames }})</span>
           </span>
         </div>
       </div>
@@ -153,7 +155,7 @@
 <script setup lang="ts">
 // (removed duplicate focus agent logic)
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { getReplay } from '@/services/api'
+import { getReplayChunk } from '@/services/api'
 import type { Replay, ReplayFrame } from '@/types'
 import ReplayMap from '@/components/ReplayMap.vue'
 import PhaserReplay from '@/components/PhaserReplay.vue'
@@ -178,14 +180,15 @@ interface Props {
 const props = defineProps<Props>()
 
 const replay = ref<Replay | null>(null)
-const loading = ref(true) // overall loading gate for template
-const loadProgress = ref(0) // 0 - 100 simulated
-const targetDurationMs = 120000
+const loading = ref(true) // show initial loader until first chunk arrives
+const loadProgress = ref(0) // real % of frames loaded vs total
+const targetDurationMs = 120000 // used only for ETA smoothing when total unknown
 // Use ReturnType<typeof setInterval> to be compatible with both browser & Node typings
 let progressInterval: ReturnType<typeof setInterval> | null = null
 const remainingSeconds = computed(() => {
+  // Simple heuristic based on remaining percent and target duration
   if (loadProgress.value >= 100) return 0
-  const frac = loadProgress.value / 100
+  const frac = Math.max(0.01, loadProgress.value / 100)
   const elapsed = targetDurationMs * frac
   const remainMs = Math.max(0, targetDurationMs - elapsed)
   return Math.ceil(remainMs / 1000)
@@ -200,20 +203,97 @@ const currentFrameData = computed((): ReplayFrame | null => {
   return replay.value?.frames[currentFrame.value] || null
 })
 
+// Total frames (from metadata when available) and loaded frames
+const totalFrames = computed(() => replay.value?.metadata.total_steps ?? replay.value?.frames.length ?? 0)
+const loadedFrames = computed(() => replay.value?.frames.length ?? 0)
+
+// Slider background to visualize played vs loaded vs remaining
+const sliderGradientStyle = computed(() => {
+  const total = Math.max(1, (totalFrames.value || 0) - 1)
+  const playedPct = total > 0 ? Math.min(100, Math.max(0, (currentFrame.value / total) * 100)) : 0
+  const loadedPct = total > 0 ? Math.min(100, Math.max(playedPct, ((loadedFrames.value - 1) / total) * 100)) : playedPct
+  const playedColor = '#42b883' // past/played
+  const loadedColor = '#6b7280' // dark gray for loaded but not yet played
+  const remainingColor = '#e5e7eb' // light gray for not yet loaded
+
+  return {
+    background: `linear-gradient(90deg,
+      ${playedColor} 0% ${playedPct}%,
+      ${loadedColor} ${playedPct}% ${loadedPct}%,
+      ${remainingColor} ${loadedPct}% 100%
+    )`
+  }
+})
+
+// Continuous, chunked loading
 const loadReplay = async () => {
+  let offset = 0
+  const limit = 250 // fetch in reasonably sized chunks
+  let firstChunk = true
+  let aborted = false
+
+  // Ensure we can abort if component unmounts
+  const stopOnUnmount = () => { aborted = true }
+  onUnmounted(stopOnUnmount)
+
   try {
-    replay.value = await getReplay(props.id)
+    // loop sequentially until server reports no more
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      if (aborted) break
+      const chunk = await getReplayChunk(props.id, offset, limit)
+
+      if (!replay.value) {
+        // initialize replay container from metadata
+        replay.value = {
+          id: chunk.id,
+          simulation_id: chunk.simulation_id,
+          name: chunk.name,
+          frames: [],
+          metadata: {
+            total_steps: chunk.metadata.total_steps,
+            duration_seconds: chunk.metadata.duration_seconds,
+            agent_count: chunk.metadata.agent_count,
+          },
+        }
+      }
+
+      // append frames
+      replay.value.frames.push(...chunk.frames)
+      offset += chunk.metadata.returned
+
+      // update progress (real, based on total)
+      const total = replay.value.metadata.total_steps || replay.value.frames.length
+      loadProgress.value = total > 0 ? (replay.value.frames.length / total) * 100 : 0
+
+      if (firstChunk) {
+        // show UI as soon as the first chunk is in
+        firstChunk = false
+        loading.value = false
+        if (progressInterval) {
+          clearInterval(progressInterval)
+          progressInterval = null
+        }
+      }
+
+      if (!chunk.metadata.has_more) {
+        // complete
+        loadProgress.value = 100
+        break
+      }
+
+      // small micro-delay to keep UI responsive
+      await new Promise(r => setTimeout(r, 0))
+    }
   } catch (error) {
     console.error('Failed to load replay:', error)
+    // still let the UI show whatever we fetched
+    loading.value = false
   } finally {
-    // Immediately finish loading UI
-    loadProgress.value = 100
     if (progressInterval) {
       clearInterval(progressInterval)
       progressInterval = null
     }
-    // Short timeout lets the bar visually snap to 100% before removal
-    setTimeout(() => { loading.value = false }, 100)
   }
 }
 
@@ -222,9 +302,8 @@ const playPause = () => {
 }
 
 const stepForward = () => {
-  if (replay.value && currentFrame.value < replay.value.frames.length - 1) {
-    currentFrame.value++
-  }
+  const maxIdx = Math.max(0, Math.min(loadedFrames.value - 1, totalFrames.value - 1))
+  if (currentFrame.value < maxIdx) currentFrame.value++
 }
 
 const stepBackward = () => {
@@ -233,14 +312,40 @@ const stepBackward = () => {
   }
 }
 
+// Clamp when total or loaded frames change
+watch([totalFrames, loadedFrames], () => {
+  const maxIdx = Math.max(0, Math.min(loadedFrames.value - 1, totalFrames.value - 1))
+  if (currentFrame.value > maxIdx) currentFrame.value = maxIdx
+})
+
+// If user seeks past loaded frames, snap back to last loaded frame
+watch(currentFrame, (val) => {
+  const maxIdx = Math.max(0, Math.min(loadedFrames.value - 1, totalFrames.value - 1))
+  if (val > maxIdx) currentFrame.value = maxIdx
+})
+
 // Auto-play functionality
 watch([isPlaying, playbackSpeed], ([playing, speed]) => {
   if (playInterval) clearInterval(playInterval)
   if (playing) {
     playInterval = setInterval(() => {
-      if (replay.value && currentFrame.value < replay.value.frames.length - 1) {
+      const total = totalFrames.value
+      const loaded = loadedFrames.value
+      if (!total || total <= 1) return
+
+      // If we can advance within loaded frames, do so
+      if (currentFrame.value < Math.min(loaded - 1, total - 1)) {
         currentFrame.value++
-      } else {
+        return
+      }
+
+      // If not fully loaded yet, wait for more chunks
+      if (loaded < total) {
+        return
+      }
+
+      // Fully loaded and at end => stop
+      if (currentFrame.value >= total - 1) {
         isPlaying.value = false
       }
     }, 1000 / speed)
@@ -248,20 +353,13 @@ watch([isPlaying, playbackSpeed], ([playing, speed]) => {
 })
 
 onMounted(() => {
-  // Simulated progress ramp: update every 300ms using ease-out curve
+  // Simulated ramp only until first chunk updates real progress
   const start = performance.now()
   progressInterval = setInterval(() => {
+    if (!loading.value) return // real progress now drives UI
     const elapsed = performance.now() - start
     const t = Math.min(1, elapsed / targetDurationMs)
-    // Ease-out (quadratic)
     loadProgress.value = t * (2 - t) * 100
-    if (t >= 1) {
-      if (progressInterval) {
-        clearInterval(progressInterval)
-        progressInterval = null
-      }
-      // If data already fetched earlier we'll already be transitioning out.
-    }
   }, 300)
   loadReplay()
 })
@@ -383,6 +481,35 @@ onUnmounted(() => {
 
 .timeline-slider {
   flex: 1;
+  appearance: none;
+  -webkit-appearance: none;
+  height: 8px;
+  border-radius: 4px;
+  outline: none;
+  border: 1px solid #cfd8dc;
+}
+
+.timeline-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #111827;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #9ca3af;
+  cursor: pointer;
+  margin-top: -4px; /* align thumb vertically with track */
+}
+
+.timeline-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #111827;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #9ca3af;
+  cursor: pointer;
 }
 
 .frame-info {
