@@ -338,199 +338,172 @@ def simulation_state(request, sim_id):
 def get_replay(request, replay_id):
     """Get replay data by ID"""
     try:
-        # Look for replay in compressed storage
+        # Unified logic for both compressed and environment-based replays
+        offset = int(request.GET.get('offset', 0))
+        limit = int(request.GET.get('limit', 100))
+        frames = []
+        persona_names = set()
+        meta = None
+        step_keys = []
+        sample_steps = []
+        is_compressed = False
+        # Try compressed storage first
         meta_file = os.path.join("compressed_storage", replay_id, "meta.json")
         movement_file = os.path.join("compressed_storage", replay_id, "master_movement.json")
-        
         if os.path.exists(meta_file) and os.path.exists(movement_file):
-            # Load metadata
+            is_compressed = True
             with open(meta_file, 'r') as f:
                 meta = json.load(f)
-            
-            # Load movement data
             with open(movement_file, 'r') as f:
                 movement_data = json.load(f)
-            
-            frames = []
-            persona_names = meta["persona_names"]
-            
-            # Convert movement data to frames (sample every 10 steps for performance)
+            persona_names = set(meta["persona_names"])
             step_keys = sorted([int(k) for k in movement_data.keys()])
-            sample_steps = step_keys[::10] if len(step_keys) > 100 else step_keys  # Sample for large datasets
-            
-            for step in sample_steps:
+            sample_steps = step_keys[::10] if len(step_keys) > 100 else step_keys
+        else:
+            # Fallback: try to build frames from environment files if available
+            env_path = os.path.join("storage", replay_id, "environment")
+            if os.path.exists(env_path):
+                env_files = find_filenames(env_path, ".json")
+                if env_files:
+                    steps = [(int(os.path.basename(f).split('.')[0]), f) for f in env_files]
+                    steps.sort()
+                    step_keys = [s[0] for s in steps]
+                    sample_steps = step_keys[::10] if len(step_keys) > 100 else step_keys
+                    env_file_map = {s[0]: s[1] for s in steps}
+        # Apply chunking
+        chunk_steps = sample_steps[offset:offset+limit]
+        for step in chunk_steps:
+            agents = []
+            move_descs = {}
+            move_emojis = {}
+            if is_compressed:
                 step_str = str(step)
-                if step_str in movement_data:
-                    agents = []
-                    step_data = movement_data[step_str]
-                    
-                    for persona_name in persona_names:
-                        if persona_name in step_data:
-                            persona_data = step_data[persona_name]
-                            
-                            # Get persona description
-                            description = "A generative agent"
-                            persona_path = os.path.join("compressed_storage", replay_id, "personas", persona_name)
-                            if os.path.exists(persona_path):
-                                desc_file = os.path.join(persona_path, "bootstrap_memory", "associative_memory", "embeddings.json")
-                                if os.path.exists(desc_file):
-                                    try:
-                                        with open(desc_file, 'r') as f:
-                                            embed_data = json.load(f)
-                                        if embed_data and len(embed_data) > 0:
-                                            first_key = list(embed_data.keys())[0]
-                                            description = embed_data[first_key].get("description", description)
-                                    except:
-                                        pass
-                            
-                            agents.append({
-                                "id": persona_name.replace(" ", "_"),
-                                "name": persona_name,
-                                "persona": description,
-                                "location": {
-                                    "x": persona_data["movement"][0],
-                                    "y": persona_data["movement"][1],
-                                    "area": persona_data.get("description", "Unknown area")
-                                },
-                                "current_action": persona_data.get("description", "Moving around"),
-                                "emotions": {
-                                    "happiness": 0.7,
-                                    "curiosity": 0.8,
-                                    "energy": 0.6
-                                }
-                            })
-                    
-                    # Calculate timestamp based on start date and step
-                    start_date = datetime.strptime(meta["start_date"] + " 00:00:00", "%B %d, %Y %H:%M:%S")
-                    current_time = start_date
-                    for i in range(step):
-                        current_time = current_time.replace(second=current_time.second + meta["sec_per_step"])
-                        if current_time.second >= 60:
-                            current_time = current_time.replace(minute=current_time.minute + 1, second=current_time.second - 60)
-                        if current_time.minute >= 60:
-                            current_time = current_time.replace(hour=current_time.hour + 1, minute=current_time.minute - 60)
-                        if current_time.hour >= 24:
-                            current_time = current_time.replace(day=current_time.day + 1, hour=current_time.hour - 24)
-                    
-                    frames.append({
-                        "step": step,
-                        "timestamp": current_time.isoformat(),
-                        "agents": agents,
-                        "events": [f"Step {step} completed"] if step % 100 == 0 else []
-                    })
-            
-            # Calculate total duration
-            total_duration = meta["step"] * meta["sec_per_step"]
-            
-            return JsonResponse({
-                "id": replay_id,
-                "simulation_id": replay_id,
-                "name": f"Replay: {replay_id}",
-                "frames": frames,
-                "metadata": {
-                    "total_steps": meta["step"],
-                    "duration_seconds": total_duration,
-                    "agent_count": len(persona_names)
-                }
-            })
-        
-        # If not found in compressed storage, try active/in-progress simulation in storage/{sim_id}/environment/*.json
-        env_path = os.path.join("storage", replay_id, "environment")
-        if os.path.exists(env_path):
-            env_files = find_filenames(env_path, ".json")
-            if env_files:
-                # Sort by frame number
-                steps = sorted([(int(os.path.basename(f).split('.')[0]), f) for f in env_files])
-                frames = []
-                persona_names = set()
-                for step, file_path in steps:
-                    with open(file_path, 'r') as f:
-                        env_data = json.load(f)
-                    # Load matching movement file for richer action descriptions
-                    move_descs = {}
-                    move_emojis = {}
-                    try:
-                        move_file = os.path.join("storage", replay_id, "movement", f"{step}.json")
-                        if os.path.exists(move_file):
-                            with open(move_file, 'r') as mf:
-                                mdata = json.load(mf)
-                            if isinstance(mdata, dict) and "persona" in mdata:
-                                for p_name, p_data in mdata["persona"].items():
-                                    move_descs[p_name] = p_data.get("description")
-                                    move_emojis[p_name] = p_data.get("pronunciatio")
-                    except Exception as e:
-                        logger.debug(f"Replay movement file read error step {step}: {e}")
-
-                    agents = []
-                    for persona_name, persona_pos in env_data.items():
-                        persona_names.add(persona_name)
-                        # Remove 'the_ville' as area if present, otherwise show area or blank
-                        area = persona_pos.get("maze", "")
-                        if area == "the_ville":
-                            area = ""
-                        # Determine action
-                        action = (
-                            move_descs.get(persona_name)
-                            or persona_pos.get("current_action")
-                            or persona_pos.get("description")
-                            or "Exploring the environment"
-                        )
-                        if action == "the_ville":
-                            action = "Exploring the environment"
-                        emoji = move_emojis.get(persona_name)
-                        if emoji and emoji not in action:
-                            action = f"{emoji} {action}"
+                step_data = movement_data[step_str] if step_str in movement_data else {}
+                for persona_name in persona_names:
+                    if persona_name in step_data:
+                        persona_data = step_data[persona_name]
+                        description = "A generative agent"
+                        persona_path = os.path.join("compressed_storage", replay_id, "personas", persona_name)
+                        if os.path.exists(persona_path):
+                            desc_file = os.path.join(persona_path, "bootstrap_memory", "associative_memory", "embeddings.json")
+                            if os.path.exists(desc_file):
+                                try:
+                                    with open(desc_file, 'r') as f:
+                                        embed_data = json.load(f)
+                                    if embed_data and len(embed_data) > 0:
+                                        first_key = list(embed_data.keys())[0]
+                                        description = embed_data[first_key].get("description", description)
+                                except Exception:
+                                    pass
                         agents.append({
                             "id": persona_name.replace(" ", "_"),
                             "name": persona_name,
-                            "persona": "A generative agent",
+                            "persona": description,
                             "location": {
-                                "x": persona_pos["x"],
-                                "y": persona_pos["y"],
-                                "area": area
+                                "x": persona_data["movement"][0],
+                                "y": persona_data["movement"][1],
+                                "area": persona_data.get("description", "Unknown area")
                             },
-                            "current_action": action,
+                            "current_action": persona_data.get("description", "Moving around"),
                             "emotions": {
                                 "happiness": 0.7,
                                 "curiosity": 0.8,
                                 "energy": 0.6
                             }
                         })
-                    frames.append({
-                        "step": step,
-                        "timestamp": datetime.now().isoformat(),
-                        "agents": agents,
-                        "events": [f"Step {step} completed"] if step % 100 == 0 else []
+                # Calculate timestamp based on start date and step
+                start_date = datetime.strptime(meta["start_date"] + " 00:00:00", "%B %d, %Y %H:%M:%S")
+                current_time = start_date
+                for _ in range(step):
+                    current_time = current_time.replace(second=current_time.second + meta["sec_per_step"])
+                    if current_time.second >= 60:
+                        current_time = current_time.replace(minute=current_time.minute + 1, second=current_time.second - 60)
+                    if current_time.minute >= 60:
+                        current_time = current_time.replace(hour=current_time.hour + 1, minute=current_time.minute - 60)
+                    if current_time.hour >= 24:
+                        current_time = current_time.replace(day=current_time.day + 1, hour=current_time.hour - 24)
+                timestamp = current_time.isoformat()
+            else:
+                # Environment-based fallback
+                if not (env_file_map and step in env_file_map):
+                    continue
+                with open(env_file_map[step], 'r') as f:
+                    env_data = json.load(f)
+                # Load matching movement file for richer action descriptions
+                try:
+                    move_file = os.path.join("storage", replay_id, "movement", f"{step}.json")
+                    if os.path.exists(move_file):
+                        with open(move_file, 'r') as mf:
+                            mdata = json.load(mf)
+                        if isinstance(mdata, dict) and "persona" in mdata:
+                            for p_name, p_data in mdata["persona"].items():
+                                move_descs[p_name] = p_data.get("description")
+                                move_emojis[p_name] = p_data.get("pronunciatio")
+                except Exception as e:
+                    logger.debug(f"Replay movement file read error step {step}: {e}")
+                for persona_name, persona_pos in env_data.items():
+                    persona_names.add(persona_name)
+                    # Remove 'the_ville' as area if present, otherwise show area or blank
+                    area = persona_pos.get("maze", "")
+                    if area == "the_ville":
+                        area = ""
+                    # Determine action
+                    action = (
+                        move_descs.get(persona_name)
+                        or persona_pos.get("current_action")
+                        or persona_pos.get("description")
+                        or "Exploring the environment"
+                    )
+                    if action == "the_ville":
+                        action = "Exploring the environment"
+                    emoji = move_emojis.get(persona_name)
+                    if emoji and emoji not in action:
+                        action = f"{emoji} {action}"
+                    agents.append({
+                        "id": persona_name.replace(" ", "_"),
+                        "name": persona_name,
+                        "persona": "A generative agent",
+                        "location": {
+                            "x": persona_pos["x"],
+                            "y": persona_pos["y"],
+                            "area": area
+                        },
+                        "current_action": action,
+                        "emotions": {
+                            "happiness": 0.7,
+                            "curiosity": 0.8,
+                            "energy": 0.6
+                        }
                     })
-                return JsonResponse({
-                    "id": replay_id,
-                    "simulation_id": replay_id,
-                    "name": f"Replay: {replay_id}",
-                    "frames": frames,
-                    "metadata": {
-                        "total_steps": len(frames),
-                        "duration_seconds": len(frames) * 10,  # Unknown sec_per_step, default 10
-                        "agent_count": len(persona_names)
-                    }
-                })
-        
-        # Fallback to mock data if replay not found
+                timestamp = datetime.now().isoformat()
+            frames.append({
+                "step": step,
+                "timestamp": timestamp,
+                "agents": agents,
+                "events": [f"Step {step} completed"] if step % 100 == 0 else []
+            })
+        # Metadata
+        if is_compressed and meta:
+            total_steps = meta["step"]
+            duration_seconds = meta["step"] * meta["sec_per_step"]
+            agent_count = len(persona_names)
+        else:
+            total_steps = len(sample_steps)
+            duration_seconds = len(sample_steps) * 10  # Unknown sec_per_step, default 10
+            agent_count = len(persona_names)
         return JsonResponse({
             "id": replay_id,
             "simulation_id": replay_id,
-            "name": f"Replay {replay_id} (Not Found)",
-            "frames": [
-                {
-                    "step": 1,
-                    "timestamp": datetime.now().isoformat(),
-                    "agents": [],
-                    "events": [f"Replay {replay_id} not found in storage"]
-                }
-            ],
+            "name": f"Replay: {replay_id}",
+            "frames": frames,
             "metadata": {
-                "total_steps": 1,
-                "duration_seconds": 10,
-                "agent_count": 0
+                "total_steps": total_steps,
+                "duration_seconds": duration_seconds,
+                "agent_count": agent_count,
+                "offset": offset,
+                "limit": limit,
+                "returned": len(frames),
+                "has_more": offset+limit < len(sample_steps)
             }
         })
         

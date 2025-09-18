@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Simulation, SimulationState, Replay, HealthStatus } from '@/types'
+import type { Simulation, SimulationState, Replay, HealthStatus, ReplayFrame } from '@/types'
 
 // Determine API base URL precedence:
 // 1. VITE_API_BASE_URL (new preferred)
@@ -83,6 +83,28 @@ export const getSimulationState = async (id: string): Promise<SimulationState> =
 // Replays
 export const getReplay = async (id: string): Promise<Replay> => {
   const response = await api.get(`/replays/${id}/`)
+  return response.data
+}
+
+// Chunked replay loading
+export interface ReplayChunk {
+  id: string
+  simulation_id: string
+  name: string
+  frames: ReplayFrame[]
+  metadata: {
+    total_steps: number
+    duration_seconds: number
+    agent_count: number
+    offset: number
+    limit: number
+    returned: number
+    has_more: boolean
+  }
+}
+
+export const getReplayChunk = async (id: string, offset = 0, limit = 100): Promise<ReplayChunk> => {
+  const response = await api.get(`/replays/${id}/`, { params: { offset, limit } })
   return response.data
 }
 

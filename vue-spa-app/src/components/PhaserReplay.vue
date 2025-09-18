@@ -1,6 +1,10 @@
 <template>
   <div class="phaser-replay" ref="container">
     <div v-if="!replay" class="empty">No replay loaded</div>
+    <div v-if="streamingLoading || (streamingHasMore && streamedFrames.length - frameIndex.value < 10)" class="buffering-indicator">
+      <span v-if="streamingLoading">Loading replay frames...</span>
+      <span v-else>Buffering next frames...</span>
+    </div>
     <div class="zoom-controls">
       <button @click="zoomOut" title="Zoom Out">-</button>
       <button @click="zoomIn" title="Zoom In">+</button>
@@ -14,7 +18,76 @@
   </div>
 </template>
 
+
+
 <script setup lang="ts">
+import { ref, onMounted, onUnmounted, watch, computed, defineExpose } from 'vue'
+
+import { getReplayChunk, type ReplayChunk } from '@/services/api'
+import type { ReplayFrame, Replay } from '@/types'
+
+// --- Props must be defined before any usage ---
+interface Props {
+  replay: Replay | null
+  frameIndex: number
+  focusedAgentId?: string | null // agent to focus camera on
+}
+const props = defineProps<Props>()
+
+// --- Streaming replay state ---
+const replayId = computed(() => props.replay?.id || '')
+const chunkSize = 100
+const streamedFrames = ref<ReplayFrame[]>([])
+const streamingMeta = ref<any>(null)
+const streamingLoading = ref(false)
+const streamingError = ref<string | null>(null)
+let streamingOffset = 0
+let streamingHasMore = true
+
+async function fetchNextReplayChunk() {
+  if (!replayId.value || !streamingHasMore || streamingLoading.value) return
+  streamingLoading.value = true
+  try {
+    const chunk: ReplayChunk = await getReplayChunk(replayId.value, streamingOffset, chunkSize)
+    if (chunk.frames && chunk.frames.length > 0) {
+      streamedFrames.value.push(...chunk.frames)
+      streamingOffset += chunk.frames.length
+      streamingHasMore = chunk.metadata.has_more
+      streamingMeta.value = chunk.metadata
+    } else {
+      streamingHasMore = false
+    }
+  } catch (e: any) {
+    streamingError.value = e.message || 'Failed to load replay chunk'
+  } finally {
+    streamingLoading.value = false
+  }
+}
+
+function maybePrefetchReplayChunk(currentIndex: number, threshold = 20) {
+  if (streamingHasMore && streamedFrames.value.length - currentIndex < threshold) {
+    fetchNextReplayChunk()
+  }
+}
+
+// Initial load when replayId changes
+watch(replayId, (id) => {
+  streamedFrames.value = []
+  streamingMeta.value = null
+  streamingOffset = 0
+  streamingHasMore = true
+  if (id) fetchNextReplayChunk()
+})
+
+// --- Frame index and buffer logic ---
+const frameIndex = ref(0)
+const currentFrame = computed<ReplayFrame | null>(() => streamedFrames.value[frameIndex.value] || null)
+
+// Prefetch next chunk as playback nears buffer end
+watch(frameIndex, (idx) => {
+  maybePrefetchReplayChunk(idx)
+})
+
 // All possible layers (from config)
 const allLayerOptions = tilemapConfig.layers
 // User-selected layers to render
@@ -59,18 +132,11 @@ function zoomOut() {
     game.scene.keys['ReplayScene'].cameras.main.setZoom(zoom.value)
   }
 }
-import { onMounted, onUnmounted, ref, watch, computed } from 'vue'
+
 import Phaser from 'phaser'
-import type { Replay, ReplayFrame } from '@/types'
 import { tilemapConfig, personaAssets, extractEmojiFromAction } from '@/assets/replayAssets'
 
-interface Props {
-  replay: Replay | null
-  frameIndex: number
-  focusedAgentId?: string | null // agent to focus camera on
-}
-
-const props = defineProps<Props>()
+// ...existing code...
 const container = ref<HTMLDivElement | null>(null)
 let game: Phaser.Game | null = null
 let cameraFollowActive = true // disables after drag, re-enabled by parent
@@ -79,8 +145,8 @@ let cameraFollowActive = true // disables after drag, re-enabled by parent
 const spriteMap: Record<string, Phaser.GameObjects.Sprite> = {}
 const labelMap: Record<string, Phaser.GameObjects.Text> = {}
 
-// Basic frame accessor
-const frame = computed<ReplayFrame | null>(() => props.replay ? props.replay.frames[props.frameIndex] : null)
+
+// Use currentFrame in Phaser rendering logic below
 
 // Placeholder world bounds (will compute from frames) 
 function computeBounds() {
@@ -343,18 +409,18 @@ class ReplayScene extends Phaser.Scene {
     this.map = map;
   }
   refreshFrame() {
-    if (!frame.value) return
+  if (!currentFrame.value) return
     const present = new Set<string>()
     // Camera follow: focus on focusedAgentId if set and cameraFollowActive, but only if not dragging
     const focusedId = props.focusedAgentId
     if (focusedId && cameraFollowActive && !this._dragging) {
-      const agent = frame.value.agents.find(a => a.id === focusedId)
+      const agent = currentFrame.value.agents.find((a: any) => a.id === focusedId)
       if (agent) {
         const { x, y } = tileToPixel(agent.location.x, agent.location.y)
         this.cameras.main.pan(x, y, 200, 'Sine.easeInOut', false)
       }
     }
-    for (const agent of frame.value.agents) {
+    for (const agent of currentFrame.value.agents) {
       present.add(agent.id)
       let sprite = spriteMap[agent.id]
       let label = labelMap[agent.id]
@@ -377,7 +443,7 @@ class ReplayScene extends Phaser.Scene {
       let animCol = 1 // idle
       if (moving) {
         // Use frameIndex to alternate
-        animCol = (Math.floor((frame.value?.step || 0) / 8) % 2 === 0) ? 0 : 2
+        animCol = (Math.floor((currentFrame.value?.step || 0) / 8) % 2 === 0) ? 0 : 2
       }
       // Frame size (assume 32x32)
       const frameW = 32, frameH = 32
@@ -555,5 +621,20 @@ watch(() => props.replay, () => {
   }
   .zoom-controls button:hover {
     background: #f0f0f0;
+  }
+  .buffering-indicator {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255,255,255,0.95);
+    border-radius: 8px;
+    padding: 16px 32px;
+    font-size: 1.1rem;
+    color: #333;
+    z-index: 20;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    pointer-events: none;
+    text-align: center;
   }
 </style>
