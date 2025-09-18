@@ -8,8 +8,36 @@
     <div v-if="loading" class="loading">
       <div class="progress-wrapper">
         <div class="progress-label">Loading replay ({{ Math.min(100, Math.round(loadProgress)) }}%)</div>
-        <div class="progress-bar">
+        <div
+          class="progress-bar"
+          style="position: relative;"
+          @click="onProgressBarClick($event)"
+        >
           <div class="progress-fill" :style="{ width: Math.min(100, loadProgress) + '%' }"></div>
+          <!-- Timeline markers for end of long actions -->
+          <template v-for="marker in timelineMarkers" :key="marker">
+            <div
+              class="timeline-marker"
+              :style="{
+                left: ((marker / Math.max(1, totalFrames - 1)) * 100) + '%',
+                position: 'absolute',
+                top: '-4px',
+                width: '8px',
+                height: '22px',
+                background: 'none',
+                pointerEvents: 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                zIndex: 2,
+              }"
+              @click.stop="jumpToFrame(marker)"
+              title="Jump to frame {{ marker + 1 }}"
+            >
+              <span style="display: block; width: 8px; height: 8px; border-radius: 50%; background: #eab308; border: 2px solid #fff; box-shadow: 0 0 2px #eab308; position: absolute; top: 8px;"></span>
+            </div>
+          </template>
         </div>
         <div class="progress-eta" v-if="loadProgress < 100">ETA ~ {{ remainingSeconds }}s</div>
       </div>
@@ -35,10 +63,12 @@
         </div>
 
         <div class="timeline">
-          <input 
-            v-model.number="currentFrame" 
-            type="range" 
-            :min="0" 
+          <input
+            :value="sliderValue"
+            @input="onTimelineSliderInput($event)"
+            @change="onTimelineSliderChange($event)"
+            type="range"
+            :min="0"
             :max="Math.max(0, totalFrames - 1)"
             class="timeline-slider"
             :style="sliderGradientStyle"
@@ -179,14 +209,14 @@ interface Props {
 
 const props = defineProps<Props>()
 
+
+// --- PARALLEL, OUT-OF-ORDER CHUNK LOADING ---
 const replay = ref<Replay | null>(null)
-const loading = ref(true) // show initial loader until first chunk arrives
-const loadProgress = ref(0) // real % of frames loaded vs total
-const targetDurationMs = 120000 // used only for ETA smoothing when total unknown
-// Use ReturnType<typeof setInterval> to be compatible with both browser & Node typings
+const loading = ref(true)
+const loadProgress = ref(0)
+const targetDurationMs = 120000
 let progressInterval: ReturnType<typeof setInterval> | null = null
 const remainingSeconds = computed(() => {
-  // Simple heuristic based on remaining percent and target duration
   if (loadProgress.value >= 100) return 0
   const frac = Math.max(0.01, loadProgress.value / 100)
   const elapsed = targetDurationMs * frac
@@ -194,28 +224,21 @@ const remainingSeconds = computed(() => {
   return Math.ceil(remainMs / 1000)
 })
 const currentFrame = ref(0)
-
 const isPlaying = ref(false)
 const playbackSpeed = ref(1)
 let playInterval: ReturnType<typeof setInterval> | null = null
 
-const currentFrameData = computed((): ReplayFrame | null => {
-  return replay.value?.frames[currentFrame.value] || null
-})
-
-// Total frames (from metadata when available) and loaded frames
-const totalFrames = computed(() => replay.value?.metadata.total_steps ?? replay.value?.frames.length ?? 0)
-const loadedFrames = computed(() => replay.value?.frames.length ?? 0)
-
-// Slider background to visualize played vs loaded vs remaining
+// Instead of a dense array, use a sparse array for frames
+const frames = ref<(ReplayFrame | undefined)[]>([])
+const totalFrames = ref(0)
+const loadedFrames = computed(() => frames.value.filter(f => f !== undefined).length)
 const sliderGradientStyle = computed(() => {
   const total = Math.max(1, (totalFrames.value || 0) - 1)
   const playedPct = total > 0 ? Math.min(100, Math.max(0, (currentFrame.value / total) * 100)) : 0
   const loadedPct = total > 0 ? Math.min(100, Math.max(playedPct, ((loadedFrames.value - 1) / total) * 100)) : playedPct
-  const playedColor = '#42b883' // past/played
-  const loadedColor = '#6b7280' // dark gray for loaded but not yet played
-  const remainingColor = '#e5e7eb' // light gray for not yet loaded
-
+  const playedColor = '#42b883'
+  const loadedColor = '#6b7280'
+  const remainingColor = '#e5e7eb'
   return {
     background: `linear-gradient(90deg,
       ${playedColor} 0% ${playedPct}%,
@@ -224,103 +247,131 @@ const sliderGradientStyle = computed(() => {
     )`
   }
 })
+const currentFrameData = computed((): ReplayFrame | null => {
+  return frames.value[currentFrame.value] || null
+})
 
-// Continuous, chunked loading
-const loadReplay = async () => {
-  let offset = 0
-  const limit = 250 // fetch in reasonably sized chunks
-  let firstChunk = true
-  let aborted = false
+// Track which chunks are being loaded
+const chunkSize = 250
+const loadingChunks = new Set<number>() // chunk start offsets
+const loadedChunks = new Set<number>()
 
-  // Ensure we can abort if component unmounts
-  const stopOnUnmount = () => { aborted = true }
-  onUnmounted(stopOnUnmount)
-
+async function loadChunk(offset: number) {
+  if (loadingChunks.has(offset) || loadedChunks.has(offset)) return
+  loadingChunks.add(offset)
   try {
-    // loop sequentially until server reports no more
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      if (aborted) break
-      
-      console.debug(`[loadReplay] Fetching chunk with offset=${offset}, limit=${limit}`)
-      const chunk = await getReplayChunk(props.id, offset, limit)
-      
-      console.debug(`[loadReplay] Received chunk:`, {
-        frames_received: chunk.frames.length,
-        metadata: chunk.metadata,
-        total_steps: chunk.metadata.total_steps,
-        has_more: chunk.metadata.has_more,
-        returned: chunk.metadata.returned,
-        current_offset: offset
-      })
-
-      if (!replay.value) {
-        // initialize replay container from metadata
-        replay.value = {
-          id: chunk.id,
-          simulation_id: chunk.simulation_id,
-          name: chunk.name,
-          frames: [],
-          metadata: {
-            total_steps: chunk.metadata.total_steps,
-            duration_seconds: chunk.metadata.duration_seconds,
-            agent_count: chunk.metadata.agent_count,
-          },
-        }
-        console.debug(`[loadReplay] Initialized replay with total_steps=${chunk.metadata.total_steps}`)
+    const chunk = await getReplayChunk(props.id, offset, chunkSize)
+    if (!replay.value) {
+      // initialize replay container from metadata
+      replay.value = {
+        id: chunk.id,
+        simulation_id: chunk.simulation_id,
+        name: chunk.name,
+        frames: [],
+        metadata: {
+          total_steps: chunk.metadata.total_steps,
+          duration_seconds: chunk.metadata.duration_seconds,
+          agent_count: chunk.metadata.agent_count,
+        },
       }
-
-      // append frames
-      const framesBefore = replay.value.frames.length
-      replay.value.frames.push(...chunk.frames)
-      const framesAfter = replay.value.frames.length
-      
-      // Use actual frames received for offset calculation instead of metadata.returned
-      offset = framesAfter
-
-      console.debug(`[loadReplay] Frames before: ${framesBefore}, after: ${framesAfter}, new offset: ${offset}`)
-
-      // update progress (real, based on total)
-      const total = replay.value.metadata.total_steps || replay.value.frames.length
-      loadProgress.value = total > 0 ? (replay.value.frames.length / total) * 100 : 0
-
-      if (firstChunk) {
-        // show UI as soon as the first chunk is in
-        firstChunk = false
-        loading.value = false
-        if (progressInterval) {
-          clearInterval(progressInterval)
-          progressInterval = null
-        }
-      }
-
-      if (!chunk.metadata.has_more) {
-        // complete
-        console.debug(`[loadReplay] Loading complete. Total frames loaded: ${replay.value.frames.length}, expected: ${replay.value.metadata.total_steps}`)
-        loadProgress.value = 100
-        break
-      }
-
-      // Break infinite loop if no frames received
-      if (chunk.frames.length === 0) {
-        console.warn('[loadReplay] Received 0 frames but has_more=true, breaking to prevent infinite loop')
-        break
-      }
-
-      // small micro-delay to keep UI responsive
-      await new Promise(r => setTimeout(r, 0))
+      totalFrames.value = chunk.metadata.total_steps
+      // Pre-allocate sparse array
+      frames.value = Array(chunk.metadata.total_steps)
     }
-  } catch (error) {
-    console.error('Failed to load replay:', error)
-    // still let the UI show whatever we fetched
-    loading.value = false
+    // Fill in the chunk
+    for (let i = 0; i < chunk.frames.length; ++i) {
+      frames.value[offset + i] = chunk.frames[i]
+    }
+    loadedChunks.add(offset)
+    // Update progress
+    loadProgress.value = totalFrames.value > 0 ? (loadedFrames.value / totalFrames.value) * 100 : 0
+    if (loading.value && loadedFrames.value > 0) {
+      loading.value = false
+      if (progressInterval) {
+        clearInterval(progressInterval)
+        progressInterval = null
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load chunk', offset, e)
   } finally {
-    if (progressInterval) {
-      clearInterval(progressInterval)
-      progressInterval = null
-    }
+    loadingChunks.delete(offset)
   }
 }
+
+
+
+
+// --- AGGRESSIVE PARALLEL CHUNK LOADING ---
+const loadReplay = async () => {
+  await loadChunk(0)
+  // After first chunk, load all remaining chunks in parallel
+  if (!replay.value || !replay.value.metadata.total_steps) return;
+  const total = replay.value.metadata.total_steps;
+  const maxChunk = Math.floor((total - 1) / chunkSize);
+  for (let i = 1; i <= maxChunk; ++i) {
+    loadChunk(i * chunkSize);
+  }
+}
+
+// When user jumps to a frame, load the chunk if not loaded
+watch(currentFrame, (val) => {
+  const offset = Math.floor(val / chunkSize) * chunkSize
+  if (!loadedChunks.has(offset)) {
+    loadChunk(offset)
+  }
+})
+
+// Allow manual jump to any frame
+function jumpToFrame(idx: number) {
+  if (idx < 0 || idx >= totalFrames.value) return
+  currentFrame.value = idx
+  const offset = Math.floor(idx / chunkSize) * chunkSize
+  if (!loadedChunks.has(offset)) {
+    loadChunk(offset)
+  }
+}
+
+// Auto-play functionality
+watch([isPlaying, playbackSpeed], ([playing, speed]) => {
+  if (playInterval) clearInterval(playInterval)
+  if (playing) {
+    playInterval = setInterval(() => {
+      const total = totalFrames.value
+      const loaded = loadedFrames.value
+      if (!total || total <= 1) return
+      // If we can advance within loaded frames, do so
+      if (currentFrame.value < Math.min(loaded - 1, total - 1)) {
+        currentFrame.value++
+        return
+      }
+      // If not fully loaded yet, wait for more chunks
+      if (loaded < total) {
+        return
+      }
+      // Fully loaded and at end => stop
+      if (currentFrame.value >= total - 1) {
+        isPlaying.value = false
+      }
+    }, 1000 / speed)
+  }
+})
+
+onMounted(() => {
+  const start = performance.now()
+  progressInterval = setInterval(() => {
+    if (!loading.value) return
+    const elapsed = performance.now() - start
+    const t = Math.min(1, elapsed / targetDurationMs)
+    loadProgress.value = t * (2 - t) * 100
+  }, 300)
+  loadReplay()
+})
+
+onUnmounted(() => {
+  if (playInterval) clearInterval(playInterval)
+  if (progressInterval) clearInterval(progressInterval)
+})
 
 const playPause = () => {
   isPlaying.value = !isPlaying.value
@@ -336,18 +387,6 @@ const stepBackward = () => {
     currentFrame.value--
   }
 }
-
-// Clamp when total or loaded frames change
-watch([totalFrames, loadedFrames], () => {
-  const maxIdx = Math.max(0, Math.min(loadedFrames.value - 1, totalFrames.value - 1))
-  if (currentFrame.value > maxIdx) currentFrame.value = maxIdx
-})
-
-// If user seeks past loaded frames, snap back to last loaded frame
-watch(currentFrame, (val) => {
-  const maxIdx = Math.max(0, Math.min(loadedFrames.value - 1, totalFrames.value - 1))
-  if (val > maxIdx) currentFrame.value = maxIdx
-})
 
 // Auto-play functionality
 watch([isPlaying, playbackSpeed], ([playing, speed]) => {
@@ -392,6 +431,86 @@ onMounted(() => {
 onUnmounted(() => {
   if (playInterval) clearInterval(playInterval)
   if (progressInterval) clearInterval(progressInterval)
+})
+
+// --- TIMELINE MARKERS FOR END OF LONG ACTIONS ---
+// Markers for frames where at least one agent stops a long action after all 3 have done it for 100+ frames
+const timelineMarkers = ref<number[]>([])
+const LONG_ACTIONS = ['sleeping', 'asleep', 'resting', 'nap', 'sleep'] // extend as needed
+
+// Analyze loaded frames for marker points
+function updateTimelineMarkers() {
+  if (!frames.value.length || totalFrames.value === 0) return
+  const minRun = 100
+  const agentCount = replay.value?.metadata.agent_count || 3
+  // Track for each agent the current long action run
+  const runs: Record<string, {action: string, start: number, length: number}> = {}
+  let lastAllSame: {action: string, start: number, end: number} | null = null
+  let markers: number[] = []
+  for (let i = 0; i < frames.value.length; ++i) {
+    const frame = frames.value[i]
+    if (!frame || !frame.agents) continue
+    // For each agent, update their run
+    for (const agent of frame.agents) {
+      const isLong = LONG_ACTIONS.includes(agent.current_action.toLowerCase())
+      if (!runs[agent.id]) {
+        runs[agent.id] = {action: agent.current_action, start: i, length: isLong ? 1 : 0}
+      } else {
+        if (isLong && agent.current_action === runs[agent.id].action) {
+          runs[agent.id].length++
+        } else {
+          runs[agent.id] = {action: agent.current_action, start: i, length: isLong ? 1 : 0}
+        }
+      }
+    }
+    // Check if all agents are in the same long action for minRun
+    const allLong = Object.values(runs).length === agentCount && Object.values(runs).every(r => LONG_ACTIONS.includes(r.action.toLowerCase()) && r.length >= minRun)
+    if (allLong) {
+      if (!lastAllSame) {
+        lastAllSame = {action: frame.agents[0].current_action, start: i, end: i}
+      } else {
+        lastAllSame.end = i
+      }
+    } else if (lastAllSame) {
+      // At least one agent stopped the long action
+      markers.push(i)
+      lastAllSame = null
+    }
+  }
+  timelineMarkers.value = markers
+}
+
+// Make progress bar clickable to jump to any frame
+function onProgressBarClick(event: MouseEvent) {
+  const bar = event.currentTarget as HTMLElement | null
+  if (!bar) return
+  const rect = bar.getBoundingClientRect()
+  const x = event.clientX - rect.left
+  const pct = Math.max(0, Math.min(1, x / rect.width))
+  const frame = Math.round(pct * (totalFrames.value - 1))
+  console.log('Jumping to frame', frame)
+  jumpToFrame(frame)
+}
+
+// Recompute markers when frames are loaded/updated
+watch(frames, updateTimelineMarkers, {deep: true})
+
+// --- Timeline slider decoupling for smooth seeking ---
+const sliderValue = ref(0)
+function onTimelineSliderInput(event: Event) {
+  const target = event.target as HTMLInputElement | null
+  if (target && target.value !== undefined) {
+    sliderValue.value = Number(target.value)
+  }
+}
+function onTimelineSliderChange(event: Event) {
+  const target = event.target as HTMLInputElement | null
+  if (target && target.value !== undefined) {
+    jumpToFrame(Number(target.value))
+  }
+}
+watch(currentFrame, (val) => {
+  sliderValue.value = val
 })
 </script>
 

@@ -51,6 +51,7 @@ export const API_BASE = resolvedBase
 
 // Health check
 export const getHealth = async (): Promise<HealthStatus> => {
+  return {env_server: true, sim_server: false, timestamp: Date.now().toString()} as HealthStatus;
   const response = await api.get('/health/')
   return response.data
 }
