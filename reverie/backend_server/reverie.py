@@ -24,13 +24,18 @@ import json
 import math
 import os
 import shutil
+import sys
 import time
 import traceback
+
+# Add the project root to sys.path for services import
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from global_methods import *
 from maze import *
 from persona.persona import *
 from utils import *
+from services.config import build_services
 
 ##############################################################################
 #                                  REVERIE                                   #
@@ -38,7 +43,15 @@ from utils import *
 
 
 class ReverieServer:
-    def __init__(self, fork_sim_code, sim_code):
+    def __init__(self, fork_sim_code, sim_code, services=None):
+        # Initialize configurable services
+        if services is None:
+            services = build_services()
+        self.services = services
+        self.llm_repo = services.get("llm_repo")
+        self.planning_service = services.get("planning_service")
+        self.environment_service = services.get("environment_service")
+        
         # FORKING FROM A PRIOR SIMULATION:
         # <fork_sim_code> indicates the simulation we are forking from.
         # Interestingly, all simulations must be forked from some initial
@@ -124,7 +137,8 @@ class ReverieServer:
             persona_folder = f"{sim_folder}/personas/{persona_name}"
             p_x = init_env[persona_name]["x"]
             p_y = init_env[persona_name]["y"]
-            curr_persona = Persona(persona_name, persona_folder)
+            # Pass services to Persona constructor
+            curr_persona = Persona(persona_name, persona_folder, services=self.services)
 
             self.personas[persona_name] = curr_persona
             self.personas_tile[persona_name] = (p_x, p_y)

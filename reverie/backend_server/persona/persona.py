@@ -26,11 +26,21 @@ from persona.memory_structures.spatial_memory import *
 
 
 class Persona:
-    def __init__(self, name, folder_mem_saved=False):
+    def __init__(self, name, folder_mem_saved=False, services=None):
         # PERSONA BASE STATE
         # <name> is the full name of the persona. This is a unique identifier for
         # the persona within Reverie.
         self.name = name
+        
+        # Store configurable services for cognitive modules
+        self.services = services or {}
+        self.llm_repo = self.services.get("llm_repo")
+        self.planning_service = self.services.get("planning_service")
+        
+        # Set global LLM repository for legacy code compatibility
+        if self.llm_repo:
+            from persona.prompt_template.gpt_structure import set_llm_repository
+            set_llm_repository(self.llm_repo)
 
         # PERSONA MEMORY
         # If there is already memory in folder_mem_saved, we load that. Otherwise,
@@ -139,7 +149,13 @@ class Persona:
         OUTPUT
           The target action address of the persona (persona.scratch.act_address).
         """
-        return plan(self, maze, personas, new_day, retrieved)
+        # Use configurable planning service if available, otherwise fall back to legacy
+        if self.planning_service:
+            return self.planning_service.plan(self, maze, personas, new_day, retrieved)
+        else:
+            # Fallback to legacy planning
+            from persona.cognitive_modules.plan import plan as legacy_plan
+            return legacy_plan(self, maze, personas, new_day, retrieved)
 
     def execute(self, maze, personas, plan):
         """

@@ -6,12 +6,32 @@ Description: Wrapper functions for calling OpenAI APIs.
 """
 
 import json
+import os
+import sys
 import time
 
 import openai
-from utils import *
 
-openai.api_key = openai_api_key
+# Add project root to path for services import
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
+
+# Try to import utils and set openai key, but don't fail if missing
+try:
+    from utils import *
+    openai.api_key = openai_api_key
+except Exception:
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+# Global LLM repository - can be overridden by set_llm_repository()
+_global_llm_repo = None
+
+def set_llm_repository(llm_repo):
+    """Set the global LLM repository to use for all GPT requests."""
+    global _global_llm_repo
+    _global_llm_repo = llm_repo
+
+def get_llm_repository():
+    """Get the current LLM repository, falling back to direct OpenAI if none set."""
+    return _global_llm_repo
 
 
 def temp_sleep(seconds=0.1):
@@ -208,17 +228,38 @@ def ChatGPT_safe_generate_response_OLD(
 
 def GPT_request(prompt, gpt_parameter):
     """
-    Given a prompt and a dictionary of GPT parameters, make a request to OpenAI
-    server and returns the response.
+    Given a prompt and a dictionary of GPT parameters, make a request to LLM
+    server and returns the response. Uses configurable LLM repository if available.
     ARGS:
       prompt: a str prompt
       gpt_parameter: a python dictionary with the keys indicating the names of
                      the parameter and the values indicating the parameter
                      values.
     RETURNS:
-      a str of GPT-3's response.
+      a str of LLM's response.
     """
     temp_sleep()
+    
+    # Use configurable LLM repository if available
+    llm_repo = get_llm_repository()
+    if llm_repo:
+        try:
+            # Convert legacy parameters to LLM repository format
+            messages = [{"role": "user", "content": prompt}]
+            temperature = gpt_parameter.get("temperature", 0.7)
+            max_tokens = gpt_parameter.get("max_tokens", 150)
+            
+            response = llm_repo.chat(
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+            return response
+        except Exception as e:
+            print(f"LLM Repository error: {e}")
+            print("Falling back to direct OpenAI...")
+    
+    # Fallback to original OpenAI implementation
     try:
         response = openai.Completion.create(
             model=gpt_parameter["engine"],
