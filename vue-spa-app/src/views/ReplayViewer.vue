@@ -1,232 +1,204 @@
 <template>
-  <div class="replay-viewer">
-    <div class="header">
-      <h1>Replay: {{ replay?.name || id }}</h1>
-      <router-link to="/sims" class="back-button">← Back to Simulations</router-link>
-    </div>
-
-    <div v-if="loading" class="loading">
-      <div class="progress-wrapper">
-        <div class="progress-label">Loading replay ({{ Math.min(100, Math.round(loadProgress)) }}%)</div>
-        <div
-          class="progress-bar"
-          style="position: relative;"
-          @click="onProgressBarClick($event)"
-        >
-          <div class="progress-fill" :style="{ width: Math.min(100, loadProgress) + '%' }"></div>
-          <!-- Timeline markers for end of long actions -->
-          <template v-for="marker in timelineMarkers" :key="marker">
-            <div
-              class="timeline-marker"
-              :style="{
-                left: ((marker / Math.max(1, totalFrames - 1)) * 100) + '%',
-                position: 'absolute',
-                top: '-4px',
-                width: '8px',
-                height: '22px',
-                background: 'none',
-                pointerEvents: 'auto',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                zIndex: 2,
-              }"
-              @click.stop="jumpToFrame(marker)"
-              title="Jump to frame {{ marker + 1 }}"
-            >
-              <span style="display: block; width: 8px; height: 8px; border-radius: 50%; background: #eab308; border: 2px solid #fff; box-shadow: 0 0 2px #eab308; position: absolute; top: 8px;"></span>
-            </div>
-          </template>
+  <div>
+    
+    <div class="content">
+      <div v-if="loading" class="loading">
+        <h1 class="page-title">Replay Viewer</h1>
+        <div class="progress-wrapper">
+          <div class="progress-label">Loading replay ({{ Math.min(100, Math.round(loadProgress)) }}%)</div>
+          <div
+            class="progress-bar"
+            style="position: relative;"
+            @click="onProgressBarClick($event)"
+          >
+            <div class="progress-fill" :style="{ width: Math.min(100, loadProgress) + '%' }"></div>
+            <!-- Timeline markers for end of long actions -->
+            <template v-for="marker in timelineMarkers" :key="marker">
+              <div
+                class="timeline-marker"
+                :style="{
+                  left: ((marker / Math.max(1, totalFrames - 1)) * 100) + '%',
+                  position: 'absolute',
+                  top: '-4px',
+                  width: '8px',
+                  height: '22px',
+                  background: 'none',
+                  pointerEvents: 'auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  zIndex: 2,
+                }"
+                @click.stop="jumpToFrame(marker)"
+                title="Jump to frame {{ marker + 1 }}"
+              >
+                <span style="display: block; width: 8px; height: 8px; border-radius: 50%; background: #eab308; border: 2px solid #fff; box-shadow: 0 0 2px #eab308; position: absolute; top: 8px;"></span>
+              </div>
+            </template>
+          </div>
+          <div class="progress-eta" v-if="loadProgress < 100">ETA ~ {{ remainingSeconds }}s</div>
         </div>
-        <div class="progress-eta" v-if="loadProgress < 100">ETA ~ {{ remainingSeconds }}s</div>
-      </div>
     </div>
     
-    <div v-else-if="replay" class="replay-content">
-      <div class="replay-controls">
-        <button @click="playPause" class="control-btn">
-          {{ isPlaying ? '⏸️' : '▶️' }}
-        </button>
-        <button @click="stepBackward" class="control-btn">⏮️</button>
-        <button @click="stepForward" class="control-btn">⏭️</button>
-
-        <div class="velocity-control" ref="speedControlRef">
-          <button type="button" class="speed-button" @click="toggleSpeedPopover" :title="'Playback speed ('+playbackSpeed.toFixed(2)+'x)'">
-            ⚡ {{ playbackSpeed }}x
-          </button>
-          <transition name="fade">
-            <div v-if="showSpeedPopover" class="speed-popover minimal" @click.stop>
-              <input
-                v-model.number="sliderInternal"
-                type="range"
-                orient="vertical"
-                class="speed-vertical-slider only"
-                min="0"
-                :max="speedSteps.length-1"
-                step="1"
-                @input="onSpeedSliderInput"
+    <div v-if="replay" class="replay-content">
+      <div class="layout-flex">
+        <aside class="left-sidebar">
+          <div class="controls-block">
+            <div class="replay-controls compact">
+              <div class="buttons-row">
+                <button @click="playPause" class="control-btn" :title="isPlaying ? 'Pause' : 'Play'">
+                  {{ isPlaying ? '⏸️' : '▶️' }}
+                </button>
+                <button @click="stepBackward" class="control-btn" title="Previous frame">⏮️</button>
+                <button @click="stepForward" class="control-btn" title="Next frame">⏭️</button>
+                <div class="velocity-control inline" ref="speedControlRef">
+                  <button type="button" class="speed-button" @click="toggleSpeedPopover" :title="'Playback speed ('+playbackSpeed.toFixed(2)+'x)'">⚡ {{ playbackSpeed }}x</button>
+                  <transition name="fade">
+                    <div v-if="showSpeedPopover" class="speed-popover minimal" @click.stop>
+                      <input
+                        v-model.number="sliderInternal"
+                        type="range"
+                        orient="vertical"
+                        class="speed-vertical-slider only"
+                        min="0"
+                        :max="speedSteps.length-1"
+                        step="1"
+                        @input="onSpeedSliderInput"
+                      />
+                    </div>
+                  </transition>
+                </div>
+              </div>
+              <div class="timeline compact">
+                <input
+                  :value="sliderValue"
+                  @input="onTimelineSliderInput($event)"
+                  @change="onTimelineSliderChange($event)"
+                  type="range"
+                  :min="0"
+                  :max="Math.max(0, totalFrames - 1)"
+                  class="timeline-slider"
+                  :style="sliderGradientStyle"
+                />
+                <span class="frame-info">
+                  {{ Math.min(currentFrame + 1, totalFrames || 0) }} / {{ totalFrames || 0 }}
+                  <span v-if="loadedFrames < totalFrames"> ({{ loadedFrames }})</span>
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="agents-summary">
+            <h3 class="section-title">Agents ({{ currentFrameData?.agents.length || 0 }})</h3>
+            <div class="agents-list compact">
+              <div
+                v-for="agent in currentFrameData?.agents"
+                :key="agent.id"
+                class="agent-row-summary"
+                :class="{ focused: agent.id === focusedAgentId }"
+                @click="focusAgent(agent.id)"
+                :style="{ cursor: usePhaser ? 'pointer' : undefined }"
+              >
+                <span class="agent-name">{{ agent.name }}</span>
+                <span class="agent-action" :title="agent.current_action">{{ agent.current_action }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="environment-info">
+            <h3>Environment</h3>
+            <p>Time: {{ currentFrameData?.timestamp }}</p>
+            <p>Step: {{ currentFrameData?.step }}</p>
+            <div v-if="currentFrameData?.events.length" class="events">
+              <h4>Events:</h4>
+              <ul>
+                <li v-for="event in currentFrameData.events" :key="event">{{ event }}</li>
+              </ul>
+            </div>
+          </div>
+        </aside>
+        <div class="main-pane">
+          <div class="map-wrapper">
+            <div class="visual-header">
+              <h3>Spatial Replay</h3>
+              <label>
+                <input type="checkbox" v-model="usePhaser" />
+                Use Phaser
+              </label>
+            </div>
+            <div class="map-container" @mousedown="focusedAgentId = null">
+              <component
+                :is="usePhaser ? PhaserReplay : ReplayMap"
+                v-if="currentFrameData"
+                :replay="replay"
+                :frameIndex="currentFrame"
+                :frame="currentFrameData"
+                :focusedAgentId="usePhaser ? focusedAgentId : undefined"
+                ref="phaserReplayRef"
               />
             </div>
-          </transition>
-        </div>
-
-        <div class="timeline">
-          <input
-            :value="sliderValue"
-            @input="onTimelineSliderInput($event)"
-            @change="onTimelineSliderChange($event)"
-            type="range"
-            :min="0"
-            :max="Math.max(0, totalFrames - 1)"
-            class="timeline-slider"
-            :style="sliderGradientStyle"
-          />
-          <span class="frame-info">
-            Frame {{ Math.min(currentFrame + 1, totalFrames || 0) }} / {{ totalFrames || 0 }}
-            <span v-if="loadedFrames < totalFrames"> (loaded {{ loadedFrames }})</span>
-          </span>
-        </div>
-      </div>
-
-      <div class="replay-display">
-        <!-- Left sidebar: Agents list in one column -->
-        <div class="agents-sidebar">
-          <h3>Agents ({{ currentFrameData?.agents.length || 0 }})</h3>
-          <div class="agents-list">
-            <div
-              v-for="agent in currentFrameData?.agents"
-              :key="agent.id"
-              class="agent-card-compact"
-              @click="focusAgent(agent.id)"
-              :style="{ cursor: usePhaser ? 'pointer' : undefined }"
-            >
-              <h4>{{ agent.name }}</h4>
-              <p class="location">
-                <span v-if="agent.location.area && agent.location.area !== ''">📍 {{ agent.location.area }}</span>
-                <span class="coords">({{ agent.location.x }}, {{ agent.location.y }})</span>
-              </p>
-              <p class="action">🎬 {{ agent.current_action }}</p>
-            </div>
           </div>
-        </div>
-
-        <!-- Main area: Map -->
-        <div class="visual-pane">
-          <div class="visual-header">
-            <h3>Spatial Replay</h3>
-            <label>
-              <input type="checkbox" v-model="usePhaser" />
-              Use Phaser (tilemap/assets)
-            </label>
-          </div>
-          <div class="map-container">
-            <component
-              :is="usePhaser ? PhaserReplay : ReplayMap"
-              v-if="currentFrameData"
-              :replay="replay"
-              :frameIndex="currentFrame"
-              :frame="currentFrameData"
-              :focusedAgentId="usePhaser ? focusedAgentId : undefined"
-              ref="phaserReplayRef"
-            />
-          </div>
-        </div>
-      </div>
-
-      <!-- Bottom area: Environment info and detailed agent info -->
-      <div class="details-section">
-        <div class="environment-info">
-          <h3>Environment</h3>
-          <p>Time: {{ currentFrameData?.timestamp }}</p>
-          <p>Step: {{ currentFrameData?.step }}</p>
-          <div v-if="currentFrameData?.events.length" class="events">
-            <h4>Events:</h4>
-            <ul>
-              <li v-for="event in currentFrameData.events" :key="event">{{ event }}</li>
-            </ul>
-          </div>
-        </div>
-        
-        <div class="detailed-agents">
-          <h3>Agent Details</h3>
-          <div class="agents-rows-detailed">
-            <div
-              v-for="agent in currentFrameData?.agents"
-              :key="agent.id"
-              class="agent-row-detailed"
-              @click="focusAgent(agent.id)"
-              :style="{ cursor: usePhaser ? 'pointer' : undefined }"
-            >
-              <div class="agent-info-section">
-                <div class="agent-basic-info">
-                  <h4>{{ agent.name }}</h4>
-                  <p class="persona">{{ agent.persona }}</p>
-                </div>
-                <div class="agent-status-info">
-                  <p class="location">
-                    <span v-if="agent.location.area && agent.location.area !== ''">📍 {{ agent.location.area }} </span>
-                    <span>(x: {{ agent.location.x }}, y: {{ agent.location.y }})</span>
-                  </p>
-                  <p class="action"><strong>🎬 {{ agent.current_action }}</strong></p>
-                </div>
-                <div class="emotions">
-                  <span
-                    v-for="(value, emotion) in agent.emotions"
-                    :key="emotion"
-                    class="emotion-badge"
-                    :style="{ opacity: value }"
-                  >
-                    {{ emotion }}: {{ Math.round(value * 100) }}%
-                  </span>
-                </div>
-              </div>
-
-              <!-- Agent Progress Line with Decision Points -->
-              <div class="agent-progress-container" v-if="!loading && totalFrames > 0">
-                <div class="agent-progress-label">Activity Timeline</div>
-                <div class="agent-progress-bar" @click="onAgentProgressClick($event, agent.id)">
-                  <div 
-                    class="agent-progress-fill" 
-                    :style="{ width: getAgentProgressPercent(agent.id) + '%' }"
-                  ></div>
-                  <!-- Decision point markers -->
-                  <div
-                    v-for="decisionPoint in agentDecisionPoints[agent.id] || []"
-                    :key="decisionPoint"
-                    class="decision-marker"
-                    :style="{
-                      left: ((decisionPoint / Math.max(1, totalFrames - 1)) * 100) + '%'
-                    }"
-                    @click.stop="jumpToFrame(decisionPoint)"
-                    :title="`Decision at frame ${decisionPoint + 1}: ${getActionChange(agent.id, decisionPoint)}`"
-                  >
-                    <span class="decision-dot"></span>
+          <div class="details-section">
+            <div class="detailed-agents">
+              <h3>Agent Details</h3>
+              <div class="agents-rows-detailed">
+                <div
+                  v-for="agent in currentFrameData?.agents"
+                  :key="agent.id"
+                  class="agent-row-detailed"
+                  @click="focusAgent(agent.id)"
+                  :style="{ cursor: usePhaser ? 'pointer' : undefined }"
+                >
+                  <!-- existing detailed agent info left unchanged -->
+                  <div class="agent-info-section">
+                    <div class="agent-basic-info">
+                      <h4>{{ agent.name }}</h4>
+                      <p class="persona">{{ agent.persona }}</p>
+                    </div>
+                    <div class="agent-status-info">
+                      <p class="location">
+                        <span v-if="agent.location.area && agent.location.area !== ''">📍 {{ agent.location.area }} </span>
+                        <span>(x: {{ agent.location.x }}, y: {{ agent.location.y }})</span>
+                      </p>
+                      <p class="action"><strong>🎬 {{ agent.current_action }}</strong></p>
+                    </div>
+                    <div class="emotions">
+                      <span
+                        v-for="(value, emotion) in agent.emotions"
+                        :key="emotion"
+                        class="emotion-badge"
+                        :style="{ opacity: value }"
+                      >
+                        {{ emotion }}: {{ Math.round(value * 100) }}%
+                      </span>
+                    </div>
                   </div>
-                  <!-- Current position indicator -->
-                  <div
-                    class="current-position-marker"
-                    :style="{
-                      left: ((currentFrame / Math.max(1, totalFrames - 1)) * 100) + '%'
-                    }"
-                  >
-                    <span class="current-position-dot"></span>
+                  <div class="agent-progress-container" v-if="!loading && totalFrames > 0">
+                    <div class="agent-progress-bar" @click="onAgentProgressClick($event)">
+                      <div class="agent-progress-fill" :style="{ width: getAgentProgressPercent() + '%' }"></div>
+                      <div
+                        v-for="decisionPoint in agentDecisionPoints[agent.id] || []"
+                        :key="decisionPoint"
+                        class="decision-marker"
+                        :style="{ left: ((decisionPoint / Math.max(1, totalFrames - 1)) * 100) + '%' }"
+                        @click.stop="jumpToFrame(decisionPoint)"
+                        :title="`Decision at frame ${decisionPoint + 1}: ${getActionChange(agent.id, decisionPoint)}`"
+                      >
+                        <span class="decision-dot"></span>
+                      </div>
+                      <div class="current-position-marker" :style="{ left: ((currentFrame / Math.max(1, totalFrames - 1)) * 100) + '%' }">
+                        <span class="current-position-dot"></span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-
-      <div class="replay-metadata">
-        <h3>Replay Information</h3>
-        <p>Duration: {{ replay.metadata.duration_seconds }}s</p>
-        <p>Total Steps: {{ replay.metadata.total_steps }}</p>
-        <p>Agents: {{ replay.metadata.agent_count }}</p>
       </div>
     </div>
   </div>
+</div>
 </template>
 
 
@@ -245,7 +217,8 @@ const phaserReplayRef = ref<any>(null)
 const focusedAgentId = ref<string | null>(null)
 function focusAgent(agentId: string) {
   if (usePhaser.value) {
-    focusedAgentId.value = agentId
+    // Toggle focus: if already focused, un-focus; otherwise focus
+    focusedAgentId.value = focusedAgentId.value === agentId ? null : agentId
     // Call exposed method to re-enable camera follow
     phaserReplayRef.value?.focusAgent?.()
   }
@@ -414,6 +387,13 @@ onMounted(() => {
   loadReplay()
 })
 
+// Emit custom event so App breadcrumb can show replay name when available
+watch(() => replay.value?.name, (val) => {
+  if (val) {
+    window.dispatchEvent(new CustomEvent('replay-name', { detail: { name: val } }))
+  }
+})
+
 onUnmounted(() => {
   if (playInterval) clearInterval(playInterval)
   if (progressInterval) clearInterval(progressInterval)
@@ -573,7 +553,7 @@ function onProgressBarClick(event: MouseEvent) {
 }
 
 // Agent progress bar click handler
-function onAgentProgressClick(event: MouseEvent, agentId: string) {
+function onAgentProgressClick(event: MouseEvent) {
   const bar = event.currentTarget as HTMLElement | null
   if (!bar) return
   const rect = bar.getBoundingClientRect()
@@ -584,7 +564,7 @@ function onAgentProgressClick(event: MouseEvent, agentId: string) {
 }
 
 // Get current progress percentage for an agent (same as overall progress)
-function getAgentProgressPercent(agentId: string): number {
+function getAgentProgressPercent(): number {
   return totalFrames.value > 0 ? (currentFrame.value / Math.max(1, totalFrames.value - 1)) * 100 : 0
 }
 
@@ -633,6 +613,14 @@ watch(currentFrame, (val) => {
 </script>
 
 <style scoped>
+/* Page title styling */
+.page-title {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 2rem 0 1.5rem 0;
+  text-align: center;
+}
 .velocity-control { position: relative; display:flex; align-items:center; }
 .speed-button { background:#fff; border:1px solid #bbb; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:0.9rem; box-shadow:0 1px 3px rgba(0,0,0,0.08); }
 .speed-button:hover { background:#f0f0f0; }
@@ -898,9 +886,6 @@ input[type=range].speed-vertical-slider::-moz-range-track { background:transpare
 }
 
 .details-section {
-  display: grid;
-  grid-template-columns: 300px 1fr;
-  gap: 1rem;
   margin-bottom: 2rem;
 }
 
@@ -908,8 +893,6 @@ input[type=range].speed-vertical-slider::-moz-range-track { background:transpare
   background: white;
   padding: 1rem;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  max-height: 300px;
 }
 
 .environment-info h3 {
@@ -923,7 +906,6 @@ input[type=range].speed-vertical-slider::-moz-range-track { background:transpare
   padding: 1rem;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  max-height: 300px;
   overflow-y: auto;
 }
 
@@ -1178,7 +1160,7 @@ input[type=range].speed-vertical-slider::-moz-range-track { background:transpare
   }
   
   .agents-sidebar {
-    max-height: 200px;
+    
   }
   
   .agent-info-section {
@@ -1224,5 +1206,235 @@ input[type=range].speed-vertical-slider::-moz-range-track { background:transpare
   outline: none;
   border: 1.5px solid #42b883;
   box-shadow: 0 0 0 2px #42b88322;
+}
+
+/* New sidebar layout styles */
+.sidebar-layout {
+  width: 100vw;
+  background: #f8f9fa;
+  box-sizing: border-box;
+  min-height: 0;
+}
+
+.layout-flex {
+  display: flex;
+  flex-direction: row;
+  min-height: 0;
+}
+
+.left-sidebar {
+  position: sticky;
+  top: 0;
+  width: 320px;
+  min-width: 260px;
+  max-width: 400px;
+  background: #fff;
+  border-right: 1px solid #e0e0e0;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  min-height: 0;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.controls-block {
+  padding: 1rem 0.5rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.replay-controls.compact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.buttons-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.timeline.compact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: stretch;
+  width: 100%;
+}
+
+.timeline.compact .timeline-slider {
+  flex: 1;
+}
+
+.timeline.compact .frame-info {
+  text-align: center;
+  font-size: 0.8rem;
+}
+
+.agents-summary {
+  flex-grow: 0;
+  padding: 1rem 0.5rem;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.agents-summary .section-title {
+  margin: 0 0 1rem 0;
+  color: #2c3e50;
+  font-size: 1rem;
+}
+
+.agents-list.compact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.agent-row-summary {
+  background: #f9f9f9;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.agent-row-summary:hover {
+  background: #f0f0f0;
+}
+
+.agent-row-summary.focused {
+  background: #e3f2fd;
+  border-color: #42b883;
+  box-shadow: 0 0 0 2px rgba(66, 184, 131, 0.2);
+}
+
+.agent-name {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.9rem;
+}
+
+.agent-action {
+  font-size: 0.8rem;
+  color: #666;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.main-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: visible;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.map-wrapper {
+  flex: 0 0 400px;
+  min-height: 300px;
+  background: #e9ecef;
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.map-wrapper .visual-header {
+  padding: 0.5rem 1rem;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  flex-shrink: 0;
+}
+
+.map-wrapper .map-container {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.details-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: #fff;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.details-section .detailed-agents {
+  min-height: 0;
+}
+
+.left-sidebar .environment-info {
+  flex: 0 0 auto;
+}
+
+.replay-metadata.inline-meta {
+  padding: 0.5rem 1rem;
+  background: #f1f3f4;
+  border-top: 1px solid #e0e0e0;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+/* Responsive design */
+@media (max-width: 900px) {
+  .sidebar-layout {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+  }
+  .layout-flex {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+  }
+  .left-sidebar {
+    position: static;
+    width: 100vw;
+    max-width: none;
+    border-right: none;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    padding: 0;
+    height: auto;
+    min-height: 0;
+    overflow-y: visible;
+  }
+  .main-pane {
+    margin-left: 0;
+    width: 100vw;
+    min-width: 0;
+    height: auto;
+    min-height: 0;
+    overflow-y: visible;
+  }
+  .controls-block {
+    flex: 0 0 auto;
+    width: 50%;
+    border-right: 1px solid #e0e0e0;
+    border-bottom: none;
+  }
+  .agents-summary {
+    flex: 1;
+    width: 50%;
+  }
+  .map-wrapper {
+    flex: 0 0 300px;
+  }
 }
 </style>

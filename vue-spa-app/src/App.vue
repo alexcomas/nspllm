@@ -2,7 +2,7 @@
   <div id="app">
     <nav class="navbar">
       <div class="nav-brand">
-        <router-link to="/" class="brand-link">NSPLLM</router-link>
+        <router-link to="/" class="brand-link">NSPLLM<span v-if="breadcrumbLabel" class="breadcrumb"> / {{ breadcrumbLabel }}</span></router-link>
       </div>
       <div class="nav-links">
         <router-link to="/sims" class="nav-link">Simulations</router-link>
@@ -17,7 +17,33 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { useRoute } from 'vue-router'
 import HealthBadge from '@/components/HealthBadge.vue'
+
+const breadcrumbLabel = ref<string>('')
+const route = useRoute()
+
+function handleReplayNameEvent(e: CustomEvent) {
+  breadcrumbLabel.value = e.detail?.name || ''
+}
+
+function updateFromRoute() {
+  if (route.name === 'replay' && !breadcrumbLabel.value) {
+    // Show placeholder until event arrives
+    breadcrumbLabel.value = route.params.id ? `Replay ${route.params.id}` : ''
+  } else if (route.name !== 'replay') {
+    breadcrumbLabel.value = ''
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('replay-name', handleReplayNameEvent as EventListener)
+  updateFromRoute()
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('replay-name', handleReplayNameEvent as EventListener)
+})
 </script>
 
 <style scoped>
@@ -35,6 +61,13 @@ import HealthBadge from '@/components/HealthBadge.vue'
   font-weight: bold;
   color: #42b883;
   text-decoration: none;
+}
+
+.breadcrumb {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #ccc;
+  margin-left: 0.5rem;
 }
 
 .nav-links {

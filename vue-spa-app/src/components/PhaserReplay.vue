@@ -5,7 +5,7 @@
       <button @click="zoomOut" title="Zoom Out">-</button>
       <button @click="zoomIn" title="Zoom In">+</button>
     </div>
-    <div class="layer-controls">
+    <div v-if="false" class="layer-controls">
       <label v-for="layer in allLayerOptions" :key="layer" class="layer-checkbox">
         <input type="checkbox" :value="layer" v-model="selectedLayers" />
         {{ layer }}
