@@ -185,8 +185,10 @@ def GPT_request(prompt, gpt_parameter):
             messages = [{"role": "user", "content": prompt}]
             temperature = gpt_parameter.get("temperature", 0.7)
             max_tokens = gpt_parameter.get("max_tokens", 150)
+            model = gpt_parameter.get("engine", None)
 
             response = llm_repo.chat(
+                model=model,
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens

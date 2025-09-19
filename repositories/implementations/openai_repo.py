@@ -57,7 +57,7 @@ class OpenAIRepo(LLMRepository):
                 completion = self._client.chat.completions.create(
                     model=model or self.model_default,
                     messages=messages,
-                    temperature=1,
+                    temperature=temperature,
                     reasoning_effort="minimal",
                     **kwargs,
                 )
