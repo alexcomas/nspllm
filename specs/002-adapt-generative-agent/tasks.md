@@ -47,13 +47,13 @@ Contract files discovered in `/home/ledwo/nspllm/specs/002-adapt-generative-agen
   - Methods: `generate(prompt, **kwargs)`, `structured(prompt, schema, **kwargs)`, `call_function(prompt, functions, **kwargs)`
   - Error types: rate limit/timeout are consistent
   - Metadata: request/response metadata accessible for logging
-- [ ] T006 [P] Integration test: Switch LLM provider via `LLM_PROVIDER` config in `/home/ledwo/nspllm/tests/integration/test_switch_llm_provider.py`
+- [x] T006 [P] Integration test: Switch LLM provider via `LLM_PROVIDER` config in `/home/ledwo/nspllm/tests/integration/test_switch_llm_provider.py`
   - Given `services/config.py` set to provider `openai`, ensure repository resolves to OpenAI implementation
   - When toggled to a mock provider, ensure resolution switches without code changes in services
-- [ ] T007 [P] Integration test: Switch planning module in `/home/ledwo/nspllm/tests/integration/test_switch_planning_module.py`
+- [x] T007 [P] Integration test: Switch planning module in `/home/ledwo/nspllm/tests/integration/test_switch_planning_module.py`
   - Select module via `services/planning_service.py` wiring or env var
   - Engine caller (`reverie/backend_server/reverie.py`) uses selected module without code changes
-- [ ] T008 [P] Integration test: Reproducible logging/state capture in `/home/ledwo/nspllm/tests/integration/test_reproducible_logging.py`
+- [x] T008 [P] Integration test: Reproducible logging/state capture in `/home/ledwo/nspllm/tests/integration/test_reproducible_logging.py`
   - Set seed + run one planning step → verify persisted log/checkpoint exists and includes seed, prompts, outputs
 
 ## Phase 3.3: Core Implementation (ONLY after tests are failing)
