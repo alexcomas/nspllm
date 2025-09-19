@@ -52,6 +52,14 @@
                 </button>
                 <button @click="stepBackward" class="control-btn" title="Previous frame">⏮️</button>
                 <button @click="stepForward" class="control-btn" title="Next frame">⏭️</button>
+                <button 
+                  @click="jumpToFirstDecision" 
+                  class="control-btn" 
+                  :disabled="firstDecisionFrame === null || currentFrame >= firstDecisionFrame"
+                  title="Jump to first decision"
+                >
+                  🎯
+                </button>
                 <div class="velocity-control inline" ref="speedControlRef">
                   <button type="button" class="speed-button" @click="toggleSpeedPopover" :title="'Playback speed ('+playbackSpeed.toFixed(2)+'x)'">⚡ {{ playbackSpeed }}x</button>
                   <transition name="fade">
@@ -301,6 +309,12 @@ const currentFrameData = computed((): ReplayFrame | null => {
   return frames.value[currentFrame.value] || null
 })
 
+// Find the first decision frame across all agents
+const firstDecisionFrame = computed((): number | null => {
+  const allDecisionFrames = Object.values(agentDecisionPoints.value).flat()
+  return allDecisionFrames.length > 0 ? Math.min(...allDecisionFrames) : null
+})
+
 // Track which chunks are being loaded
 const chunkSize = 250
 const loadingChunks = new Set<number>() // chunk start offsets
@@ -419,6 +433,12 @@ const stepForward = () => {
 const stepBackward = () => {
   if (currentFrame.value > 0) {
     currentFrame.value--
+  }
+}
+
+const jumpToFirstDecision = () => {
+  if (firstDecisionFrame.value !== null) {
+    jumpToFrame(firstDecisionFrame.value)
   }
 }
 
@@ -776,6 +796,11 @@ input[type=range].speed-vertical-slider::-moz-range-track { background:transpare
 
 .control-btn:hover {
   background: #369870;
+}
+
+.control-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .timeline {
