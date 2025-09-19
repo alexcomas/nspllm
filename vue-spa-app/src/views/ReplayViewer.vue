@@ -150,30 +150,69 @@
         
         <div class="detailed-agents">
           <h3>Agent Details</h3>
-          <div class="agents-grid-detailed">
+          <div class="agents-rows-detailed">
             <div
               v-for="agent in currentFrameData?.agents"
               :key="agent.id"
-              class="agent-card-detailed"
+              class="agent-row-detailed"
               @click="focusAgent(agent.id)"
               :style="{ cursor: usePhaser ? 'pointer' : undefined }"
             >
-              <h4>{{ agent.name }}</h4>
-              <p class="persona">{{ agent.persona }}</p>
-              <p class="location">
-                <span v-if="agent.location.area && agent.location.area !== ''">📍 {{ agent.location.area }} </span>
-                <span>(x: {{ agent.location.x }}, y: {{ agent.location.y }})</span>
-              </p>
-              <p class="action"><strong>🎬 {{ agent.current_action }}</strong></p>
-              <div class="emotions">
-                <span
-                  v-for="(value, emotion) in agent.emotions"
-                  :key="emotion"
-                  class="emotion-badge"
-                  :style="{ opacity: value }"
-                >
-                  {{ emotion }}: {{ Math.round(value * 100) }}%
-                </span>
+              <div class="agent-info-section">
+                <div class="agent-basic-info">
+                  <h4>{{ agent.name }}</h4>
+                  <p class="persona">{{ agent.persona }}</p>
+                </div>
+                <div class="agent-status-info">
+                  <p class="location">
+                    <span v-if="agent.location.area && agent.location.area !== ''">📍 {{ agent.location.area }} </span>
+                    <span>(x: {{ agent.location.x }}, y: {{ agent.location.y }})</span>
+                  </p>
+                  <p class="action"><strong>🎬 {{ agent.current_action }}</strong></p>
+                </div>
+                <div class="emotions">
+                  <span
+                    v-for="(value, emotion) in agent.emotions"
+                    :key="emotion"
+                    class="emotion-badge"
+                    :style="{ opacity: value }"
+                  >
+                    {{ emotion }}: {{ Math.round(value * 100) }}%
+                  </span>
+                </div>
+              </div>
+
+              <!-- Agent Progress Line with Decision Points -->
+              <div class="agent-progress-container" v-if="!loading && totalFrames > 0">
+                <div class="agent-progress-label">Activity Timeline</div>
+                <div class="agent-progress-bar" @click="onAgentProgressClick($event, agent.id)">
+                  <div 
+                    class="agent-progress-fill" 
+                    :style="{ width: getAgentProgressPercent(agent.id) + '%' }"
+                  ></div>
+                  <!-- Decision point markers -->
+                  <div
+                    v-for="decisionPoint in agentDecisionPoints[agent.id] || []"
+                    :key="decisionPoint"
+                    class="decision-marker"
+                    :style="{
+                      left: ((decisionPoint / Math.max(1, totalFrames - 1)) * 100) + '%'
+                    }"
+                    @click.stop="jumpToFrame(decisionPoint)"
+                    :title="`Decision at frame ${decisionPoint + 1}: ${getActionChange(agent.id, decisionPoint)}`"
+                  >
+                    <span class="decision-dot"></span>
+                  </div>
+                  <!-- Current position indicator -->
+                  <div
+                    class="current-position-marker"
+                    :style="{
+                      left: ((currentFrame / Math.max(1, totalFrames - 1)) * 100) + '%'
+                    }"
+                  >
+                    <span class="current-position-dot"></span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -445,6 +484,40 @@ onUnmounted(() => {
 const timelineMarkers = ref<number[]>([])
 const LONG_ACTIONS = ['sleeping', 'asleep', 'resting', 'nap', 'sleep'] // extend as needed
 
+// --- AGENT DECISION POINTS ---
+// Track decision points (action changes) for each agent
+const agentDecisionPoints = ref<Record<string, number[]>>({})
+
+// Analyze agent action changes to find decision points
+function updateAgentDecisionPoints() {
+  if (!frames.value.length || totalFrames.value === 0) return
+  
+  const decisionPoints: Record<string, number[]> = {}
+  const lastActions: Record<string, string> = {}
+  
+  for (let i = 0; i < frames.value.length; ++i) {
+    const frame = frames.value[i]
+    if (!frame || !frame.agents) continue
+    
+    for (const agent of frame.agents) {
+      // Initialize tracking for this agent
+      if (!decisionPoints[agent.id]) {
+        decisionPoints[agent.id] = []
+        lastActions[agent.id] = agent.current_action
+        continue
+      }
+      
+      // Check if action changed
+      if (agent.current_action !== lastActions[agent.id]) {
+        decisionPoints[agent.id].push(i)
+        lastActions[agent.id] = agent.current_action
+      }
+    }
+  }
+  
+  agentDecisionPoints.value = decisionPoints
+}
+
 // Analyze loaded frames for marker points
 function updateTimelineMarkers() {
   if (!frames.value.length || totalFrames.value === 0) return
@@ -499,8 +572,46 @@ function onProgressBarClick(event: MouseEvent) {
   jumpToFrame(frame)
 }
 
+// Agent progress bar click handler
+function onAgentProgressClick(event: MouseEvent, agentId: string) {
+  const bar = event.currentTarget as HTMLElement | null
+  if (!bar) return
+  const rect = bar.getBoundingClientRect()
+  const x = event.clientX - rect.left
+  const pct = Math.max(0, Math.min(1, x / rect.width))
+  const frame = Math.round(pct * (totalFrames.value - 1))
+  jumpToFrame(frame)
+}
+
+// Get current progress percentage for an agent (same as overall progress)
+function getAgentProgressPercent(agentId: string): number {
+  return totalFrames.value > 0 ? (currentFrame.value / Math.max(1, totalFrames.value - 1)) * 100 : 0
+}
+
+// Get the action of an agent at a specific frame
+function getActionAtFrame(agentId: string, frameIndex: number): string {
+  const frame = frames.value[frameIndex]
+  if (!frame || !frame.agents) return 'Unknown'
+  const agent = frame.agents.find(a => a.id === agentId)
+  return agent?.current_action || 'Unknown'
+}
+
+// Get action change information for tooltip
+function getActionChange(agentId: string, frameIndex: number): string {
+  const currentAction = getActionAtFrame(agentId, frameIndex)
+  const previousAction = frameIndex > 0 ? getActionAtFrame(agentId, frameIndex - 1) : ''
+  
+  if (previousAction && previousAction !== currentAction) {
+    return `${previousAction} → ${currentAction}`
+  }
+  return currentAction
+}
+
 // Recompute markers when frames are loaded/updated
-watch(frames, updateTimelineMarkers, {deep: true})
+watch(frames, () => {
+  updateTimelineMarkers()
+  updateAgentDecisionPoints()
+}, {deep: true})
 
 // --- Timeline slider decoupling for smooth seeking ---
 const sliderValue = ref(0)
@@ -829,6 +940,12 @@ input[type=range].speed-vertical-slider::-moz-range-track { background:transpare
   gap: 0.75rem;
 }
 
+.agents-rows-detailed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
 .agent-card-detailed {
   background: #f9f9f9;
   padding: 0.75rem;
@@ -836,6 +953,55 @@ input[type=range].speed-vertical-slider::-moz-range-track { background:transpare
   border: 1px solid #e0e0e0;
   cursor: pointer;
   transition: background-color 0.2s;
+}
+
+.agent-row-detailed {
+  background: #f9f9f9;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.agent-row-detailed:hover {
+  background: #f0f0f0;
+}
+
+.agent-info-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 1rem;
+  align-items: start;
+}
+
+.agent-basic-info h4 {
+  margin: 0 0 0.25rem 0;
+  color: #2c3e50;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.agent-basic-info .persona {
+  font-style: italic;
+  color: #666;
+  font-size: 0.8rem;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.agent-status-info .location,
+.agent-status-info .action {
+  font-size: 0.8rem;
+  margin: 0.2rem 0;
+  color: #555;
+}
+
+.agent-status-info .action {
+  color: #2c3e50;
 }
 
 .agent-card-detailed:hover {
@@ -875,6 +1041,103 @@ input[type=range].speed-vertical-slider::-moz-range-track { background:transpare
   font-size: 0.625rem;
 }
 
+/* Agent Progress Bar Styles */
+.agent-progress-container {
+  margin: 0.5rem 0;
+  min-width: 0; /* Allow flex shrinking */
+}
+
+.agent-progress-label {
+  font-size: 0.7rem;
+  color: #666;
+  margin-bottom: 0.25rem;
+  font-weight: 500;
+}
+
+.agent-progress-bar {
+  position: relative;
+  height: 14px;
+  background: #e5e7eb;
+  border-radius: 7px;
+  cursor: pointer;
+  overflow: visible;
+  margin: 0.25rem 0;
+  min-width: 200px; /* Ensure minimum width for progress bar */
+}
+
+.agent-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #42b883 0%, #369870 100%);
+  border-radius: 6px;
+  transition: width 0.2s ease;
+}
+
+.decision-marker {
+  position: absolute;
+  top: -2px;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  z-index: 3;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.decision-dot {
+  display: block;
+  width: 8px;
+  height: 8px;
+  background: #f59e0b;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.decision-marker:hover .decision-dot {
+  width: 10px;
+  height: 10px;
+  background: #d97706;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.current-position-marker {
+  position: absolute;
+  top: -4px;
+  width: 20px;
+  height: 20px;
+  z-index: 4;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.current-position-dot {
+  display: block;
+  width: 12px;
+  height: 12px;
+  background: #dc2626;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
 .replay-metadata {
   background: white;
   padding: 1rem;
@@ -902,6 +1165,11 @@ input[type=range].speed-vertical-slider::-moz-range-track { background:transpare
   .agents-grid-detailed {
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   }
+  
+  .agent-info-section {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
 }
 
 @media (max-width: 768px) {
@@ -911,6 +1179,15 @@ input[type=range].speed-vertical-slider::-moz-range-track { background:transpare
   
   .agents-sidebar {
     max-height: 200px;
+  }
+  
+  .agent-info-section {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  
+  .agent-progress-bar {
+    min-width: 150px;
   }
 }
 /* Velocity control styles */
