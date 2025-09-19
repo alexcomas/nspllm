@@ -1,4 +1,14 @@
 {
+  "name": "nspllm",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "env-server": "bash -lc \"cd environment/frontend_server && uv run python manage.py runserver\"",
+    "vue-app": "cd vue-spa-app && npm run dev",
+    "dev": "concurrently \"npm run env-server\" \"npm run vue-app\"",
+    "vue-build": "cd vue-spa-app && npm run build",
+    "vue-preview": "cd vue-spa-app && npm run preview"
+  },
   "dependencies": {
     "@types/node": "^24.3.1",
     "@vitejs/plugin-vue": "^6.0.1",
@@ -7,6 +17,7 @@
     "phaser": "^3.80.0"
   },
   "devDependencies": {
-    "@types/phaser": "^3.55.14"
+    "@types/node": "^20.0.0",
+    "concurrently": "^8.2.2"
   }
 }
