@@ -66,9 +66,11 @@ Replace `<Your OpenAI API>` and `<Name>` accordingly.
 
 ### Step 2. Install Dependencies
 
-This project uses **uv** as the package manager for faster dependency management and better reproducibility.
+This project uses **uv** for Python dependency management and **npm** for development workflow automation.
 
-#### Option 1: Using uv (Recommended)
+#### Python Dependencies (Required)
+
+**Option 1: Using uv (Recommended)**
 ```bash
 # Install uv if you haven't already
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -77,10 +79,20 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 uv sync
 ```
 
-#### Option 2: Using pip (Legacy)
+**Option 2: Using pip (Legacy)**
 ```bash
 pip install -r requirements.txt
 ```
+
+#### Development Scripts (Optional but Recommended)
+
+Install npm dependencies for convenient development scripts:
+```bash
+# Install npm dependencies (includes concurrently for running multiple servers)
+npm install
+```
+
+> **Note:** Python dependencies are required for the simulation. The npm scripts are optional convenience tools that make development easier by allowing you to run both servers from the root directory.
 
 > Tested with **Python 3.9.12**. The project now uses `pyproject.toml` for dependency management with uv.
 
@@ -89,6 +101,28 @@ pip install -r requirements.txt
 ## ▶️ Running the Simulation
 
 The simulation requires running both the **environment server** and the **agent simulation server**.
+
+### Quick Start (Recommended)
+
+For convenient development, you can now use the npm scripts from the root directory:
+
+```bash
+# Install dependencies first (if not already done)
+npm install
+
+# Start both Environment Server and Vue app simultaneously
+npm run dev
+
+# Or run them individually:
+npm run env-server  # Starts the Django Environment Server
+npm run vue-app     # Starts the Vue development server
+
+# Build and preview Vue app:
+npm run vue-build   # Build for production
+npm run vue-preview # Preview the built app
+```
+
+### Manual Setup (Alternative)
 
 1. **Start the Environment Server**
 ```bash
