@@ -23,12 +23,10 @@ dependencies = [
     "django-storages>=1.14.4",
     "gunicorn>=22.0.0",
     "psycopg2-binary>=2.9.9",
-    
     # HTTP and async
     "requests>=2.32.3",
     "urllib3>=2.2.3",
     "aiohttp>=3.9.5",
-    
     # Data science stack (3.12 compatible)
     "numpy>=1.26,<2.0",
     "pandas>=2.2.2",
@@ -40,19 +38,17 @@ dependencies = [
     "joblib>=1.4.2",
     "threadpoolctl>=3.5.0",
     "yellowbrick>=1.5",
-    
     # NLP + utilities
     "nltk>=3.9.1",
     "gensim>=4.3.3",
     "regex>=2024.9.11",
     "tqdm>=4.66.5",
     "smart-open>=7.0.4",
-    
     # Browser automation (optional)
     "selenium>=4.24.0",
-    
     # OpenAI client (v1 API)
     "openai>=1.45.0",
+    "python-dotenv>=1.1.1",
 ]
 
 [dependency-groups]

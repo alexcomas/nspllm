@@ -5,10 +5,15 @@ File: gpt_structure.py
 Description: Wrapper functions for calling OpenAI APIs.
 """
 
-import openai
+import os
+from dotenv import load_dotenv
+from openai import OpenAI
+
+load_dotenv()
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 from utils import *
 
-openai.api_key = openai_api_key
 
 
 def ChatGPT_request(prompt):
@@ -25,14 +30,12 @@ def ChatGPT_request(prompt):
     """
     # temp_sleep()
     try:
-        completion = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return completion["choices"][0]["message"]["content"]
+        completion = client.chat.completions.create(model="gpt-5-nano-2025-08-07",
+        messages=[{"role": "user", "content": prompt}])
+        return completion.choices[0].message.content
 
-    except:
-        print("ChatGPT ERROR")
+    except Exception as e:
+        print("ChatGPT ERROR:", e)
         return "ChatGPT ERROR"
 
 

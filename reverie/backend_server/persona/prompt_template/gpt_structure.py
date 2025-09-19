@@ -9,18 +9,22 @@ import json
 import os
 import sys
 import time
-
-import openai
+import dotenv
+from openai import OpenAI
 
 # Add project root to path for services import
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 
+
+dotenv.load_dotenv()
 # Try to import utils and set openai key, but don't fail if missing
 try:
     from utils import *
-    openai.api_key = openai_api_key
+    api_key = openai_api_key
 except Exception:
-    openai.api_key = os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("OPENAI_API_KEY")
+
+client = OpenAI(api_key=api_key)
 # Global LLM repository - can be overridden by set_llm_repository()
 _global_llm_repo = None
 
@@ -41,11 +45,9 @@ def temp_sleep(seconds=0.1):
 def ChatGPT_single_request(prompt):
     temp_sleep()
 
-    completion = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return completion["choices"][0]["message"]["content"]
+    completion = client.chat.completions.create(model="gpt-5-nano-2025-08-07",
+    messages=[{"role": "user", "content": prompt}])
+    return completion.choices[0].message.content
 
 
 # ============================================================================
@@ -68,11 +70,9 @@ def GPT4_request(prompt):
     temp_sleep()
 
     try:
-        completion = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return completion["choices"][0]["message"]["content"]
+        completion = client.chat.completions.create(model="gpt-4",
+        messages=[{"role": "user", "content": prompt}])
+        return completion.choices[0].message.content
 
     except:
         print("ChatGPT ERROR")
@@ -93,11 +93,9 @@ def ChatGPT_request(prompt):
     """
     # temp_sleep()
     try:
-        completion = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return completion["choices"][0]["message"]["content"]
+        completion = client.chat.completions.create(model="gpt-5-nano-2025-08-07",
+        messages=[{"role": "user", "content": prompt}])
+        return completion.choices[0].message.content
 
     except:
         print("ChatGPT ERROR")
@@ -239,7 +237,7 @@ def GPT_request(prompt, gpt_parameter):
       a str of LLM's response.
     """
     temp_sleep()
-    
+
     # Use configurable LLM repository if available
     llm_repo = get_llm_repository()
     if llm_repo:
@@ -248,7 +246,7 @@ def GPT_request(prompt, gpt_parameter):
             messages = [{"role": "user", "content": prompt}]
             temperature = gpt_parameter.get("temperature", 0.7)
             max_tokens = gpt_parameter.get("max_tokens", 150)
-            
+
             response = llm_repo.chat(
                 messages=messages,
                 temperature=temperature,
@@ -258,20 +256,18 @@ def GPT_request(prompt, gpt_parameter):
         except Exception as e:
             print(f"LLM Repository error: {e}")
             print("Falling back to direct OpenAI...")
-    
+
     # Fallback to original OpenAI implementation
     try:
-        response = openai.Completion.create(
-            model=gpt_parameter["engine"],
-            prompt=prompt,
-            temperature=gpt_parameter["temperature"],
-            max_tokens=gpt_parameter["max_tokens"],
-            top_p=gpt_parameter["top_p"],
-            frequency_penalty=gpt_parameter["frequency_penalty"],
-            presence_penalty=gpt_parameter["presence_penalty"],
-            stream=gpt_parameter["stream"],
-            stop=gpt_parameter["stop"],
-        )
+        response = client.completions.create(model=gpt_parameter["engine"],
+        prompt=prompt,
+        temperature=gpt_parameter["temperature"],
+        max_tokens=gpt_parameter["max_tokens"],
+        top_p=gpt_parameter["top_p"],
+        frequency_penalty=gpt_parameter["frequency_penalty"],
+        presence_penalty=gpt_parameter["presence_penalty"],
+        stream=gpt_parameter["stream"],
+        stop=gpt_parameter["stop"])
         return response.choices[0].text
     except:
         print("TOKEN LIMIT EXCEEDED")
@@ -333,7 +329,7 @@ def get_embedding(text, model="text-embedding-ada-002"):
     text = text.replace("\n", " ")
     if not text:
         text = "this is blank"
-    return openai.Embedding.create(input=[text], model=model)["data"][0]["embedding"]
+    return client.embeddings.create(input=[text], model=model)["data"][0]["embedding"]
 
 
 if __name__ == "__main__":
