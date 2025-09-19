@@ -51,15 +51,24 @@
         <button @click="stepBackward" class="control-btn">⏮️</button>
         <button @click="stepForward" class="control-btn">⏭️</button>
 
-        <div class="velocity-control">
-          <label for="velocity" class="velocity-label">Speed:</label>
-          <select id="velocity" v-model.number="playbackSpeed" class="velocity-select">
-            <option :value="0.25">0.25x</option>
-            <option :value="0.5">0.5x</option>
-            <option :value="1">1x</option>
-            <option :value="2">2x</option>
-            <option :value="4">4x</option>
-          </select>
+        <div class="velocity-control" ref="speedControlRef">
+          <button type="button" class="speed-button" @click="toggleSpeedPopover" :title="'Playback speed ('+playbackSpeed.toFixed(2)+'x)'">
+            ⚡ {{ playbackSpeed }}x
+          </button>
+          <transition name="fade">
+            <div v-if="showSpeedPopover" class="speed-popover minimal" @click.stop>
+              <input
+                v-model.number="sliderInternal"
+                type="range"
+                orient="vertical"
+                class="speed-vertical-slider only"
+                min="0"
+                :max="speedSteps.length-1"
+                step="1"
+                @input="onSpeedSliderInput"
+              />
+            </div>
+          </transition>
         </div>
 
         <div class="timeline">
@@ -184,7 +193,7 @@
 
 <script setup lang="ts">
 // (removed duplicate focus agent logic)
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, onBeforeUnmount } from 'vue'
 import { getReplayChunk } from '@/services/api'
 import type { Replay, ReplayFrame } from '@/types'
 import ReplayMap from '@/components/ReplayMap.vue'
@@ -227,6 +236,27 @@ const currentFrame = ref(0)
 const isPlaying = ref(false)
 const playbackSpeed = ref(1)
 let playInterval: ReturnType<typeof setInterval> | null = null
+// Advanced speed control UI state
+// Playback speed popover (minimal slider-only)
+const showSpeedPopover = ref(false)
+const speedSteps = [0.25,0.5,1,2,4,8,16,32,64]
+const sliderInternal = ref(speedSteps.indexOf(playbackSpeed.value))
+const speedControlRef = ref<HTMLElement|null>(null)
+function toggleSpeedPopover(){
+  showSpeedPopover.value = !showSpeedPopover.value
+  sliderInternal.value = speedSteps.indexOf(playbackSpeed.value)
+}
+function onSpeedSliderInput(){
+  const idx = Math.min(speedSteps.length-1, Math.max(0, sliderInternal.value))
+  playbackSpeed.value = speedSteps[idx]
+}
+function onGlobalClick(e:MouseEvent){
+  if(!showSpeedPopover.value) return
+  if(!speedControlRef.value) return
+  if(!speedControlRef.value.contains(e.target as Node)) showSpeedPopover.value = false
+}
+document.addEventListener('click', onGlobalClick)
+onBeforeUnmount(()=>document.removeEventListener('click', onGlobalClick))
 
 // Instead of a dense array, use a sparse array for frames
 const frames = ref<(ReplayFrame | undefined)[]>([])
@@ -332,30 +362,7 @@ function jumpToFrame(idx: number) {
   }
 }
 
-// Auto-play functionality
-watch([isPlaying, playbackSpeed], ([playing, speed]) => {
-  if (playInterval) clearInterval(playInterval)
-  if (playing) {
-    playInterval = setInterval(() => {
-      const total = totalFrames.value
-      const loaded = loadedFrames.value
-      if (!total || total <= 1) return
-      // If we can advance within loaded frames, do so
-      if (currentFrame.value < Math.min(loaded - 1, total - 1)) {
-        currentFrame.value++
-        return
-      }
-      // If not fully loaded yet, wait for more chunks
-      if (loaded < total) {
-        return
-      }
-      // Fully loaded and at end => stop
-      if (currentFrame.value >= total - 1) {
-        isPlaying.value = false
-      }
-    }, 1000 / speed)
-  }
-})
+// (Removed duplicate autoplay watcher - single implementation kept below)
 
 onMounted(() => {
   const start = performance.now()
@@ -515,6 +522,22 @@ watch(currentFrame, (val) => {
 </script>
 
 <style scoped>
+.velocity-control { position: relative; display:flex; align-items:center; }
+.speed-button { background:#fff; border:1px solid #bbb; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:0.9rem; box-shadow:0 1px 3px rgba(0,0,0,0.08); }
+.speed-button:hover { background:#f0f0f0; }
+.speed-popover { position:absolute; top:40px; left:50%; transform:translateX(-50%); background:#fff; border:1px solid #d1d5db; border-radius:10px; padding:10px 16px; box-shadow:0 4px 18px rgba(0,0,0,0.15); z-index:200; width:auto; }
+.speed-popover.minimal { padding:12px 8px; }
+.speed-vertical-slider.only { writing-mode: bt-lr; appearance:none; -webkit-appearance: slider-vertical; width:40px; height:250px; transform:rotate(180deg); cursor:pointer; }
+.fade-enter-active, .fade-leave-active { transition:opacity .15s ease; }
+.fade-enter-from, .fade-leave-to { opacity:0; }
+/* Slider styling (vertical) */
+.speed-vertical-slider { background:linear-gradient(to top,#42b883,#42b883) no-repeat center/6px 100%; }
+::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:18px; height:18px; background:#fff; border:2px solid #42b883; border-radius:50%; box-shadow:0 0 0 2px #fff, 0 2px 4px rgba(0,0,0,0.2); }
+::-webkit-slider-runnable-track { background:transparent; border:none; }
+/* Firefox */
+input[type=range].speed-vertical-slider { writing-mode: bt-lr; }
+input[type=range].speed-vertical-slider::-moz-range-thumb { width:18px; height:18px; background:#fff; border:2px solid #42b883; border-radius:50%; box-shadow:0 0 0 2px #fff,0 2px 4px rgba(0,0,0,0.2); }
+input[type=range].speed-vertical-slider::-moz-range-track { background:transparent; border:none; }
 .replay-viewer {
   max-width: 1400px;
   margin: 0 auto;
