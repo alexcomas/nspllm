@@ -46,7 +46,9 @@ def ChatGPT_single_request(prompt):
     temp_sleep()
 
     completion = client.chat.completions.create(model="gpt-5-nano-2025-08-07",
-    messages=[{"role": "user", "content": prompt}])
+    messages=[{"role": "user", "content": prompt}],
+    reasoning_effort="minimal"
+    )
     return completion.choices[0].message.content
 
 
@@ -94,6 +96,7 @@ def ChatGPT_request(prompt):
     # temp_sleep()
     try:
         completion = client.chat.completions.create(model="gpt-5-nano-2025-08-07",
+                                                    reasoning_effort="minimal",
         messages=[{"role": "user", "content": prompt}])
         return completion.choices[0].message.content
 

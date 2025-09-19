@@ -21,7 +21,7 @@ class OpenAIRepo(LLMRepository):
         api_key: Optional[str] = None,
         *,
         client: Optional[Any] = None,
-        model_default: str = "gpt-3.5-turbo",
+        model_default: str = "gpt-5-nano-2025-08-07",
         timeout: float = 60.0,
         max_retries: int = 2,
         retry_backoff: float = 1.0,
@@ -57,8 +57,8 @@ class OpenAIRepo(LLMRepository):
                 completion = self._client.chat.completions.create(
                     model=model or self.model_default,
                     messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
+                    temperature=1,
+                    reasoning_effort="minimal",
                     **kwargs,
                 )
                 # Extract text content
