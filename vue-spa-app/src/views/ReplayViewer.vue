@@ -145,8 +145,7 @@
                   v-for="agent in currentFrameData?.agents"
                   :key="agent.id"
                   class="agent-row-detailed"
-                  @click="focusAgent(agent.id)"
-                  :style="{ cursor: usePhaser ? 'pointer' : undefined }"
+                  :class="{ focused: agent.id === focusedAgentId }"
                 >
                   <!-- existing detailed agent info left unchanged -->
                   <div class="agent-info-section">
@@ -159,7 +158,16 @@
                         <span v-if="agent.location.area && agent.location.area !== ''">📍 {{ agent.location.area }} </span>
                         <span>(x: {{ agent.location.x }}, y: {{ agent.location.y }})</span>
                       </p>
-                      <p class="action"><strong>🎬 {{ agent.current_action }}</strong></p>
+                      <p class="action">
+                        <span class="long-term-action">{{ parseAction(agent.current_action).longTerm }}</span>
+                        <br v-if="parseAction(agent.current_action).immediate || parseAction(agent.current_action).location">
+                        <span v-if="parseAction(agent.current_action).immediate" class="immediate-action">
+                          {{ parseAction(agent.current_action).immediate }}
+                        </span>
+                        <span v-if="parseAction(agent.current_action).location" class="action-location">
+                          @ {{ parseAction(agent.current_action).location }}
+                        </span>
+                      </p>
                     </div>
                     <div class="emotions">
                       <span
@@ -582,9 +590,41 @@ function getActionChange(agentId: string, frameIndex: number): string {
   const previousAction = frameIndex > 0 ? getActionAtFrame(agentId, frameIndex - 1) : ''
   
   if (previousAction && previousAction !== currentAction) {
-    return `${previousAction} → ${currentAction}`
+    const currentParsed = parseAction(currentAction)
+    const previousParsed = parseAction(previousAction)
+    return `${previousParsed.longTerm}${previousParsed.immediate ? ` (${previousParsed.immediate})` : ''} → ${currentParsed.longTerm}${currentParsed.immediate ? ` (${currentParsed.immediate})` : ''}`
   }
   return currentAction
+}
+
+// Parse action string into structured components
+function parseAction(actionString: string): { longTerm: string, immediate: string, location: string } {
+  // Default values
+  let longTerm = actionString
+  let immediate = ''
+  let location = ''
+  
+  // Check if it matches the format: "long-term (immediate) @ location"
+  const parenMatch = actionString.match(/^(.+?)\s*\(([^)]+)\)\s*@(.+)$/)
+  if (parenMatch) {
+    longTerm = parenMatch[1].trim()
+    immediate = parenMatch[2].trim()
+    location = parenMatch[3].trim()
+  } else {
+    // Check for just "@ location" without parentheses
+    const atMatch = actionString.match(/^(.+?)\s*@(.+)$/)
+    if (atMatch) {
+      longTerm = atMatch[1].trim()
+      location = atMatch[2].trim()
+    }
+  }
+  
+  // Split location by ':' and reverse the order, join with chevrons
+  if (location) {
+    location = location.split(':').reverse().join(' < ')
+  }
+  
+  return { longTerm, immediate, location }
 }
 
 // Recompute markers when frames are loaded/updated
@@ -942,15 +982,16 @@ input[type=range].speed-vertical-slider::-moz-range-track { background:transpare
   padding: 1rem;
   border-radius: 8px;
   border: 1px solid #e0e0e0;
-  cursor: pointer;
   transition: background-color 0.2s;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 
-.agent-row-detailed:hover {
-  background: #f0f0f0;
+.agent-row-detailed.focused {
+  background: #e3f2fd;
+  border-color: #42b883;
+  box-shadow: 0 0 0 2px rgba(66, 184, 131, 0.2);
 }
 
 .agent-info-section {
@@ -984,6 +1025,23 @@ input[type=range].speed-vertical-slider::-moz-range-track { background:transpare
 
 .agent-status-info .action {
   color: #2c3e50;
+}
+
+.long-term-action {
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.immediate-action {
+  font-weight: bold;
+  color: #42b883;
+  margin-right: 0.5rem;
+}
+
+.action-location {
+  color: #888;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
 }
 
 .agent-card-detailed:hover {
@@ -1157,10 +1215,6 @@ input[type=range].speed-vertical-slider::-moz-range-track { background:transpare
 @media (max-width: 768px) {
   .replay-display {
     grid-template-columns: 1fr;
-  }
-  
-  .agents-sidebar {
-    
   }
   
   .agent-info-section {
