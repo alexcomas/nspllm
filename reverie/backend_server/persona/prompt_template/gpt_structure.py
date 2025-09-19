@@ -329,7 +329,7 @@ def get_embedding(text, model="text-embedding-ada-002"):
     text = text.replace("\n", " ")
     if not text:
         text = "this is blank"
-    return client.embeddings.create(input=[text], model=model)["data"][0]["embedding"]
+    return client.embeddings.create(input=[text], model=model).data[0].embedding
 
 
 if __name__ == "__main__":
