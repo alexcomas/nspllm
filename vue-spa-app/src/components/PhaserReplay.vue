@@ -1,10 +1,6 @@
 <template>
   <div class="phaser-replay" ref="container">
     <div v-if="!replay" class="empty">No replay loaded</div>
-    <div v-if="streamingLoading || (streamingHasMore && streamedFrames.length - frameIndex.value < 10)" class="buffering-indicator">
-      <span v-if="streamingLoading">Loading replay frames...</span>
-      <span v-else>Buffering next frames...</span>
-    </div>
     <div class="zoom-controls">
       <button @click="zoomOut" title="Zoom Out">-</button>
       <button @click="zoomIn" title="Zoom In">+</button>
@@ -22,82 +18,18 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed, defineExpose } from 'vue'
-
-import { getReplayChunk, type ReplayChunk } from '@/services/api'
 import type { ReplayFrame, Replay } from '@/types'
 
-// --- Props must be defined before any usage ---
 interface Props {
   replay: Replay | null
   frameIndex: number
-  focusedAgentId?: string | null // agent to focus camera on
+  frame?: ReplayFrame | null
+  focusedAgentId?: string | null
 }
 const props = defineProps<Props>()
 
-// --- Streaming replay state ---
-const replayId = computed(() => props.replay?.id || '')
-const chunkSize = 100
-const streamedFrames = ref<ReplayFrame[]>([])
-const streamingMeta = ref<any>(null)
-const streamingLoading = ref(false)
-const streamingError = ref<string | null>(null)
-let streamingOffset = 0
-let streamingHasMore = true
-
-async function fetchNextReplayChunk() {
-  if (!replayId.value || !streamingHasMore || streamingLoading.value) return
-  streamingLoading.value = true
-  try {
-    const chunk: ReplayChunk = await getReplayChunk(replayId.value, streamingOffset, chunkSize)
-    if (chunk.frames && chunk.frames.length > 0) {
-      streamedFrames.value.push(...chunk.frames)
-      streamingOffset += chunk.frames.length
-      streamingHasMore = chunk.metadata.has_more
-      streamingMeta.value = chunk.metadata
-    } else {
-      streamingHasMore = false
-    }
-  } catch (e: any) {
-    streamingError.value = e.message || 'Failed to load replay chunk'
-  } finally {
-    streamingLoading.value = false
-  }
-}
-
-function maybePrefetchReplayChunk(currentIndex: number, threshold = 5) {
-  if (streamingHasMore && streamedFrames.value.length - currentIndex < threshold) {
-    fetchNextReplayChunk()
-  }
-}
-
-// Periodic timer to ensure prefetching continues even if user scrubs quickly
-let prefetchTimer: number | null = null
-onMounted(() => {
-  prefetchTimer = window.setInterval(() => {
-    maybePrefetchReplayChunk(frameIndex.value)
-  }, 500)
-})
-onUnmounted(() => {
-  if (prefetchTimer) clearInterval(prefetchTimer)
-})
-
-// Initial load when replayId changes
-watch(replayId, (id) => {
-  streamedFrames.value = []
-  streamingMeta.value = null
-  streamingOffset = 0
-  streamingHasMore = true
-  if (id) fetchNextReplayChunk()
-})
-
-// --- Frame index and buffer logic ---
-const frameIndex = ref(0)
-const currentFrame = computed<ReplayFrame | null>(() => streamedFrames.value[frameIndex.value] || null)
-
-// Prefetch next chunk as playback nears buffer end
-watch(frameIndex, (idx) => {
-  maybePrefetchReplayChunk(idx)
-})
+// External frames mode only: use provided frame directly
+const currentFrame = computed<ReplayFrame | null>(() => props.frame || null)
 
 // All possible layers (from config)
 const allLayerOptions = tilemapConfig.layers
@@ -159,25 +91,7 @@ const labelMap: Record<string, Phaser.GameObjects.Text> = {}
 
 // Use currentFrame in Phaser rendering logic below
 
-// Placeholder world bounds (will compute from frames) 
-function computeBounds() {
-  if (!props.replay) return { minX:0, maxX:100, minY:0, maxY:100 }
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
-  for (const f of props.replay.frames) {
-    for (const a of f.agents) {
-      if (a.location.x < minX) minX = a.location.x
-      if (a.location.x > maxX) maxX = a.location.x
-      if (a.location.y < minY) minY = a.location.y
-      if (a.location.y > maxY) maxY = a.location.y
-    }
-  }
-  if (minX === Infinity) return { minX:0, maxX:100, minY:0, maxY:100 }
-  if (minX === maxX) maxX += 1
-  if (minY === maxY) maxY += 1
-  return { minX, maxX, minY, maxY }
-}
-
-const bounds = computeBounds()
+// (Bounds logic removed; can be reintroduced if camera world limits needed)
 
 const TILE_SIZE = 32; // Standard tile size from Tiled
 // Scaling helpers - converts tile coordinates to pixel coordinates
@@ -197,7 +111,7 @@ defineExpose({ focusAgent })
 
 class ReplayScene extends Phaser.Scene {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private map?: Phaser.Tilemaps.Tilemap
+  // private map?: Phaser.Tilemaps.Tilemap
   constructor() { super('ReplayScene') }
   preload() {
     // Tilesets & map
@@ -417,7 +331,7 @@ class ReplayScene extends Phaser.Scene {
       console.error('Error creating layers:', error);
     }
     
-    this.map = map;
+  // (No persistent map reference stored; extend if needed)
   }
   refreshFrame() {
   if (!currentFrame.value) return
